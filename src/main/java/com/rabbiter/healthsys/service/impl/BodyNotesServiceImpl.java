@@ -6,6 +6,8 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.rabbiter.healthsys.entity.BodyNotes;
 import com.rabbiter.healthsys.mapper.BodyNotesMapper;
 import com.rabbiter.healthsys.service.IBodyNotesService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
@@ -13,9 +15,9 @@ import java.util.Date;
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
+@Slf4j
 public class BodyNotesServiceImpl extends ServiceImpl<BodyNotesMapper, BodyNotes> implements IBodyNotesService {
-
-    private IBodyNotesService bodyNotesMapper;
 
     @Override
     public boolean insert(BodyNotes bodyNotes) {
@@ -28,8 +30,7 @@ public class BodyNotesServiceImpl extends ServiceImpl<BodyNotesMapper, BodyNotes
     public List<BodyNotes> getBodyNotes(Integer id) {
         LambdaQueryWrapper<BodyNotes> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(BodyNotes::getId, id);
-        List<BodyNotes> bodyNotesList = baseMapper.selectList(queryWrapper);
-        return bodyNotesList;
+        return baseMapper.selectList(queryWrapper);
     }
 
     @Override
@@ -42,8 +43,7 @@ public class BodyNotesServiceImpl extends ServiceImpl<BodyNotesMapper, BodyNotes
 
     @Override
     public BodyNotes getUserBodyById(Integer notesid) {
-        BodyNotes bodyNotes = this.baseMapper.selectById(notesid);
-        return bodyNotes;
+        return this.baseMapper.selectById(notesid);
     }
 
     @Override

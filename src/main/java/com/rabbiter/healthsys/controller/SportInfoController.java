@@ -5,7 +5,8 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.rabbiter.healthsys.common.Unification;
 import com.rabbiter.healthsys.entity.SportInfo;
 import com.rabbiter.healthsys.service.ISportInfoService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,10 +16,11 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/sport")
+@RequiredArgsConstructor
+@Slf4j
 public class SportInfoController {
 
-    @Autowired
-    private ISportInfoService sportInfoService;
+    private final ISportInfoService sportInfoService;
 
 
     //获取所有运动知识

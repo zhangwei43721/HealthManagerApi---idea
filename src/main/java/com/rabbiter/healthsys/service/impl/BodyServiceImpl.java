@@ -4,20 +4,19 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.rabbiter.healthsys.entity.Body;
 import com.rabbiter.healthsys.mapper.BodyMapper;
-import com.rabbiter.healthsys.mapper.BodyNotesMapper;
 import com.rabbiter.healthsys.service.IBodyService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.Resource;
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
+@Slf4j
 public class BodyServiceImpl extends ServiceImpl<BodyMapper, Body> implements IBodyService {
 
-
-    @Resource
-    private BodyMapper bodyMapper;
-    private BodyNotesMapper bodyNotesMapper;
+    private final BodyMapper bodyMapper;
 
 
     @Override
@@ -51,8 +50,7 @@ public class BodyServiceImpl extends ServiceImpl<BodyMapper, Body> implements IB
 
     @Override
     public Body getBodyById(Integer id) {
-        Body body = this.baseMapper.selectById(id);
-        return body;
+        return this.baseMapper.selectById(id);
     }
 
     @Override

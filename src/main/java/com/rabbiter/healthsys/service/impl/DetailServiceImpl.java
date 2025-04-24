@@ -5,19 +5,20 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.rabbiter.healthsys.entity.Detail;
 import com.rabbiter.healthsys.mapper.DetailMapper;
 import com.rabbiter.healthsys.service.IDetailService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.Resource;
 import javax.transaction.Transactional;
 import java.util.List;
 
 
 @Service
+@RequiredArgsConstructor
+@Slf4j
 public class DetailServiceImpl extends ServiceImpl<DetailMapper, Detail> implements IDetailService {
 
-
-    @Resource
-    private DetailMapper detailMapper;
+    private final DetailMapper detailMapper;
 
 
     @Override
@@ -52,8 +53,7 @@ public class DetailServiceImpl extends ServiceImpl<DetailMapper, Detail> impleme
     @Override
     public Detail getDetailById(Integer id) {
         System.out.println(id);
-        Detail detail = this.baseMapper.selectById(id);
-        return detail;
+        return this.baseMapper.selectById(id);
     }
 
     @Override

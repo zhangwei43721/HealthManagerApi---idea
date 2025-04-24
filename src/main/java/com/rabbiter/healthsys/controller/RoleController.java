@@ -5,7 +5,8 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.rabbiter.healthsys.common.Unification;
 import com.rabbiter.healthsys.entity.Role;
 import com.rabbiter.healthsys.service.IRoleService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,15 +19,16 @@ import java.util.Map;
  * 前端控制器
  * </p>
  *
- * @author
+ * @author Skyforever
  * @since 2024-07-23
  */
 
 @RestController
 @RequestMapping("/role")
+@RequiredArgsConstructor
+@Slf4j
 public class RoleController {
-    @Autowired
-    private IRoleService roleService;
+    private final IRoleService roleService;
 
     @GetMapping("/list")
     // @RequestParam获取参数

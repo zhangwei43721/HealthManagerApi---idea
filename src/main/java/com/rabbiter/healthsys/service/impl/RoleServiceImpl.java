@@ -7,9 +7,10 @@ import com.rabbiter.healthsys.entity.RoleMenu;
 import com.rabbiter.healthsys.mapper.RoleMapper;
 import com.rabbiter.healthsys.mapper.RoleMenuMapper;
 import com.rabbiter.healthsys.service.IRoleService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.Resource;
 import javax.transaction.Transactional;
 import java.util.List;
 
@@ -18,15 +19,16 @@ import java.util.List;
  * 服务实现类
  * </p>
  *
- * @author
+ * @author Skyforever
  * @since 2024-07-23
  */
 
 @Service
+@RequiredArgsConstructor
+@Slf4j
 public class RoleServiceImpl extends ServiceImpl<RoleMapper, Role> implements IRoleService {
 
-    @Resource
-    private RoleMenuMapper roleMenuMapper;
+    private final RoleMenuMapper roleMenuMapper;
 
     // 新增角色
     @Override

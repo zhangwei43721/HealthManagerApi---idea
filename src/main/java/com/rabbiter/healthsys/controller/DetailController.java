@@ -5,7 +5,8 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.rabbiter.healthsys.common.Unification;
 import com.rabbiter.healthsys.entity.Detail;
 import com.rabbiter.healthsys.service.IDetailService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,9 +16,10 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/detail")
+@RequiredArgsConstructor
+@Slf4j
 public class DetailController {
-    @Autowired
-    private IDetailService detailService;
+    private final IDetailService detailService;
 
     @GetMapping("/DetailInfo/{sportName}")
     public Unification<Detail> getDetailInfo(@PathVariable String sportName) {
