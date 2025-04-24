@@ -287,16 +287,11 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
 
 
         @Override
-        public Map<String, Object> getBodyInfo() {
-            if(loginUser == null) {
+        public Map<String, Object> getBodyInfo(Integer userId) {
+            if(userId == null) {
                 return null;
             }
-            Map<String, Object> data = new HashMap<>();
-            data.put("id", loginUser.getId());
-            Integer pid = (Integer) data.get("id");
-
-            List<Body> bodyList = bodyMapper.getBodyListByUserId(pid);
-
+            List<Body> bodyList = bodyMapper.getBodyListByUserId(userId);
             Map<String, Object> result = new HashMap<>();
             result.put("bodyList", bodyList);
             return result;

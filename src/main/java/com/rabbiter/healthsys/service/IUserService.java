@@ -34,7 +34,7 @@ public interface IUserService extends IService<User> {
 
     Map<String, Object> getUserId();
 
-    Map<String, Object> getBodyInfo();
+    Map<String, Object> getBodyInfo(Integer userId);
 
     boolean updateuser(User user);
 

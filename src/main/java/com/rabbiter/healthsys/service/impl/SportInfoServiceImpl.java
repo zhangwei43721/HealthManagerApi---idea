@@ -82,16 +82,5 @@ public class SportInfoServiceImpl extends ServiceImpl<SportInfoMapper, SportInfo
         this.baseMapper.deleteById(id);
     }
 
-
-
-
-
-
-
-
-
-
-
-
 }
 

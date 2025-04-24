@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.rabbiter.healthsys.common.Unification;
+import com.rabbiter.healthsys.config.JwtConfig;
 import com.rabbiter.healthsys.entity.Body;
 import com.rabbiter.healthsys.entity.BodyNotes;
 import com.rabbiter.healthsys.entity.SportInfo;
@@ -35,6 +36,8 @@ import java.util.Map;
 @RestController
 @RequestMapping("/user")
 public class UserController {
+    @Autowired
+    private JwtConfig jwtConfig;
     @Autowired
     private IUserService userService;
 
@@ -233,28 +236,38 @@ public class UserController {
 
 
     @GetMapping("/getUserId")
-    public Unification<Map<String, Object>> getUserId() {
-        Map<String, Object> data = userService.getUserId();
-        System.out.println("id"+data);
-        if (data != null) {
+public Unification<Map<String, Object>> getUserId(@RequestHeader("X-Token") String token) {
+    try {
+        User user = jwtConfig.parseToken(token, User.class);
+        if (user != null) {
+            Map<String, Object> data = new HashMap<>();
+            data.put("id", user.getId());
             return Unification.success(data);
-        } else {
-            return Unification.fail("用户id获取失败");
         }
+    } catch (Exception e) {
+        e.printStackTrace();
     }
+    return Unification.fail("用户id获取失败");
+}
 
 
 
 
     @GetMapping("/getBodyInfo")
-    public Unification<Map<String, Object>> getBodyInfo() {
-        Map<String, Object> data = userService.getBodyInfo();
-        if (data != null) {
-            return Unification.success(data);
-        } else {
-            return Unification.fail(20002);
+public Unification<Map<String, Object>> getBodyInfo(@RequestHeader("X-Token") String token) {
+    try {
+        User user = jwtConfig.parseToken(token, User.class);
+        if (user != null) {
+            Map<String, Object> data = userService.getBodyInfo(user.getId());
+            if (data != null) {
+                return Unification.success(data);
+            }
         }
+    } catch (Exception e) {
+        e.printStackTrace();
     }
+    return Unification.fail(20002);
+}
 
 
 
@@ -331,28 +344,27 @@ public class UserController {
 
 
     @GetMapping("/getUserBodyList")
-    public Unification<Map<String, Object>> getUserBodyList(
-            @RequestParam("pageNo") Long pageNo,
-            @RequestParam("pageSize") Long pageSize) {
-
-        LambdaQueryWrapper<BodyNotes> wrapper = new LambdaQueryWrapper<>();
-        Map<String, Object> userid = userService.getUserId();
-
-        if (userid.get("id") != null) {
-            wrapper.eq(BodyNotes::getId, userid.get("id"));
-        } else {
-            // 如果userid.get("id")为null，则返回一个空的查询条件
-            wrapper.isNull(BodyNotes::getId);
+public Unification<Map<String, Object>> getUserBodyList(
+        @RequestHeader("X-Token") String token,
+        @RequestParam("pageNo") Long pageNo,
+        @RequestParam("pageSize") Long pageSize) {
+    try {
+        User user = jwtConfig.parseToken(token, User.class);
+        if (user != null) {
+            LambdaQueryWrapper<BodyNotes> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(BodyNotes::getId, user.getId());
+            Page<BodyNotes> page = new Page<>(pageNo, pageSize);
+            bodyNotesService.page(page, wrapper);
+            Map<String, Object> data = new HashMap<>();
+            data.put("total", page.getTotal());
+            data.put("rows", page.getRecords());
+            return Unification.success(data);
         }
-
-        Page<BodyNotes> page = new Page<>(pageNo, pageSize); // 构建分页对象，指定页码和每页大小
-        bodyNotesService.page(page, wrapper); // 调用userService的分页查询方法，查询指定页码、每页大小和查询条件的用户列表
-
-        Map<String, Object> data = new HashMap<>();
-        data.put("total", page.getTotal()); // 将查询到的用户总数放入响应数据中
-        data.put("rows", page.getRecords()); // 将查询到的用户列表放入响应数据中
-        return Unification.success(data);
+    } catch (Exception e) {
+        e.printStackTrace();
     }
+    return Unification.fail("用户信息获取失败");
+}
 
 
     @GetMapping("/getUserBodyById/{notesid}")
