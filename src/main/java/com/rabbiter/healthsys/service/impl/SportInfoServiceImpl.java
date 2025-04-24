@@ -5,6 +5,8 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.rabbiter.healthsys.entity.SportInfo;
 import com.rabbiter.healthsys.mapper.SportInfoMapper;
 import com.rabbiter.healthsys.service.ISportInfoService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
@@ -12,10 +14,11 @@ import javax.transaction.Transactional;
 import java.util.List;
 
 @Service
-public class SportInfoServiceImpl extends ServiceImpl<SportInfoMapper, SportInfo> implements ISportInfoService { // 实现 SportInfoService 接口
+@RequiredArgsConstructor
+@Slf4j
+public class SportInfoServiceImpl extends ServiceImpl<SportInfoMapper, SportInfo> implements ISportInfoService {
 
-    @Resource
-    private SportInfoMapper sportInfoMapper;
+    private final SportInfoMapper sportInfoMapper;
 
 
     @Override

@@ -13,6 +13,8 @@ import com.rabbiter.healthsys.service.IBodyService;
 import com.rabbiter.healthsys.service.IMenuService;
 import com.rabbiter.healthsys.service.IUserRoleService;
 import com.rabbiter.healthsys.service.IUserService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -32,26 +34,16 @@ import java.util.stream.Collectors;
  * @since 2024-07-23
  */
 @Service
+@RequiredArgsConstructor
+@Slf4j
 public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IUserService {
 
-
-    @Resource
-    private UserRoleMapper userRoleMapper;
-
-    @Autowired
-    private IMenuService menuService;
-
-
-    @Autowired
-    private IUserRoleService userRoleService;
-
-    @Autowired
-    private JwtConfig jwtConfig;
-
-
+    private final UserRoleMapper userRoleMapper;
+    private final IMenuService menuService;
+    private final IUserRoleService userRoleService;
+    private final JwtConfig jwtConfig;
+    private final IBodyService bodyMapper;
     private User loginUser = null;
-    @Autowired
-    private IBodyService bodyMapper;
 
 
     @Override

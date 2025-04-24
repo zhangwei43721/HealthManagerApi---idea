@@ -12,6 +12,8 @@ import com.rabbiter.healthsys.entity.User;
 import com.rabbiter.healthsys.service.IBodyNotesService;
 import com.rabbiter.healthsys.service.IBodyService;
 import com.rabbiter.healthsys.service.IUserService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
@@ -32,17 +34,13 @@ import java.util.Map;
 //是一种设计风格，通过URI来定位资源，并使用HTTP协议中的请求方式（GET、POST、PUT、DELETE等）对资源进行操作
 @RestController
 @RequestMapping("/user")
+@RequiredArgsConstructor
+@Slf4j
 public class UserController {
-    @Autowired
-    private JwtConfig jwtConfig;
-    @Autowired
-    private IUserService userService;
-
-    @Autowired
-    private IBodyService bodyService;
-
-    @Autowired
-    private IBodyNotesService bodyNotesService;
+    private final JwtConfig jwtConfig;
+    private final IUserService userService;
+    private final IBodyService bodyService;
+    private final IBodyNotesService bodyNotesService;
 
     /**
      * 获取所有用户
