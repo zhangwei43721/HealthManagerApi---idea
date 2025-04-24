@@ -1,0 +1,44 @@
+# 服务器基本配置
+server:
+  port: 9401         # 应用端口
+  servlet:
+    encoding:
+      charset: UTF-8   # 指定Servlet容器处理请求和响应的默认字符集为UTF-8 (这是关键且未弃用)
+      force: true      # 强制将上述字符集应用于所有请求和响应 (这是关键且未弃用)
+      enabled: true    # 启用此编码支持 (确保生效)
+
+# Spring 核心配置
+spring:
+  # 数据源配置 (保持不变)
+  datasource:
+    url: jdbc:mysql://120.55.192.74:3306/health_manager?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai&useUnicode=true&characterEncoding=utf8
+    username: root
+    password: 20040709zh
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  # JPA 配置 (保持不变)
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+
+  # 不再需要已弃用的 spring.http.encoding 部分
+
+# 日志配置
+logging:
+  level:
+    com.rabbiter: debug # 根据你的包名调整
+
+# MyBatis-Plus 配置
+mybatis-plus:
+  global-config:
+    db-config:
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+  type-aliases-package: com.rabbiter.*.entity # 根据你的包名调整
+
+# 自定义AI配置
+ai:
+  deepseek:
+    api-key: "sk-cd203451f4f34e09986239cfdd280b2a"
