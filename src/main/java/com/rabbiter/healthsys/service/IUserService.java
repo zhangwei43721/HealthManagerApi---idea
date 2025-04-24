@@ -1,16 +1,16 @@
 package com.rabbiter.healthsys.service;
 
-import com.rabbiter.healthsys.entity.User;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.rabbiter.healthsys.entity.User;
 
 import java.util.Map;
 
 /**
  * <p>
- *  服务类
+ * 服务类
  * </p>
  *
- * @author 
+ * @author
  * @since 2024-07-23
  */
 public interface IUserService extends IService<User> {

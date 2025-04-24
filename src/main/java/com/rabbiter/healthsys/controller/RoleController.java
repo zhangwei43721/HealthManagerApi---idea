@@ -15,10 +15,10 @@ import java.util.Map;
 
 /**
  * <p>
- *  前端控制器
+ * 前端控制器
  * </p>
  *
- * @author 
+ * @author
  * @since 2024-07-23
  */
 
@@ -27,11 +27,12 @@ import java.util.Map;
 public class RoleController {
     @Autowired
     private IRoleService roleService;
+
     @GetMapping("/list")
     // @RequestParam获取参数
-    public Unification<Map<String,Object>> getRoleList(@RequestParam(value = "roleName", required = false) String roleName,
-                                                       @RequestParam(value = "pageNo") Long pageNo,
-                                                       @RequestParam(value = "pageSize") Long pageSize) {
+    public Unification<Map<String, Object>> getRoleList(@RequestParam(value = "roleName", required = false) String roleName,
+                                                        @RequestParam(value = "pageNo") Long pageNo,
+                                                        @RequestParam(value = "pageSize") Long pageSize) {
 
         // 构造查询条件
         LambdaQueryWrapper<Role> wrapper = new LambdaQueryWrapper<>();
@@ -50,9 +51,8 @@ public class RoleController {
     }
 
 
-
     @PostMapping
-    public Unification<?> addRole(@RequestBody Role role){
+    public Unification<?> addRole(@RequestBody Role role) {
         boolean result = roleService.addRole(role);
         if (result) {
             return Unification.success("新增成功");
@@ -62,27 +62,27 @@ public class RoleController {
     }
 
     @PutMapping
-    public Unification<?> updateRole(@RequestBody Role role){
+    public Unification<?> updateRole(@RequestBody Role role) {
         roleService.updateRole(role);
         return Unification.success("修改成功");
     }
 
     @GetMapping("/{id}")
-    public Unification<Role> getRoleById(@PathVariable("id") Integer id){
+    public Unification<Role> getRoleById(@PathVariable("id") Integer id) {
         //根据id获取角色
         Role role = roleService.getRoleById(id);
         return Unification.success(role);
     }
 
     @DeleteMapping("/{id}")
-    public Unification<Role> deleteRoleById(@PathVariable("id") Integer id){
+    public Unification<Role> deleteRoleById(@PathVariable("id") Integer id) {
         //根据id删除角色
         roleService.deleteRoleById(id);
-        return  Unification.success("删除成功");
+        return Unification.success("删除成功");
     }
 
     @GetMapping("/all")
-    public Unification<List<Role>> getAllRole(){
+    public Unification<List<Role>> getAllRole() {
         //获取所有角色
         List<Role> roleList = roleService.list();
         return Unification.success(roleList);

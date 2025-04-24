@@ -2,7 +2,6 @@ package com.rabbiter.healthsys.controller;
 
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.rabbiter.healthsys.common.Unification;
 import com.rabbiter.healthsys.config.JwtConfig;
@@ -13,11 +12,9 @@ import com.rabbiter.healthsys.entity.User;
 import com.rabbiter.healthsys.service.IBodyNotesService;
 import com.rabbiter.healthsys.service.IBodyService;
 import com.rabbiter.healthsys.service.IUserService;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
-
 
 import java.util.HashMap;
 import java.util.List;
@@ -25,7 +22,7 @@ import java.util.Map;
 
 /**
  * <p>
- *  前端控制器
+ * 前端控制器
  * </p>
  *
  * @author
@@ -49,18 +46,19 @@ public class UserController {
 
     /**
      * 获取所有用户
+     *
      * @return 返回用户列表
      */
     @GetMapping("/all")
-    public Unification<List<User>> getAllUser(){
+    public Unification<List<User>> getAllUser() {
         List<User> list = userService.list();
-        return Unification.success(list,"查询成功");
+        return Unification.success(list, "查询成功");
     }
 
 
     @PostMapping("/login")
-    public Unification<Map<String,Object>> login(@RequestBody User user){
-        Map<String,Object> data = userService.login(user);
+    public Unification<Map<String, Object>> login(@RequestBody User user) {
+        Map<String, Object> data = userService.login(user);
         if (data != null) {
             return Unification.success(data);
         }
@@ -68,10 +66,9 @@ public class UserController {
     }
 
 
-
     @PostMapping("/Wxlogin")
-    public Unification<Map<String,Object>> Wxlogin(@RequestBody User user){
-        Map<String,Object> data = userService.login(user);
+    public Unification<Map<String, Object>> Wxlogin(@RequestBody User user) {
+        Map<String, Object> data = userService.login(user);
         if (data != null) {
             return Unification.success(data);
         }
@@ -79,63 +76,49 @@ public class UserController {
     }
 
 
-
-
-
     @PostMapping("/register")
-    public Unification<Map<String,Object>> register(@RequestBody User register) {
-        Map<String,Object> data = userService.register(register);
-        if (data.get("success")!= null){
+    public Unification<Map<String, Object>> register(@RequestBody User register) {
+        Map<String, Object> data = userService.register(register);
+        if (data.get("success") != null) {
             return Unification.success("注册成功");
-        }
-        else {
-            return Unification.fail(20004,"注册失败，用户名已存在");
+        } else {
+            return Unification.fail(20004, "注册失败，用户名已存在");
         }
     }
-
-
 
 
     @GetMapping("/info")
-    public Unification<Map<String,Object>> getUserInfo(@RequestParam("token") String token){
+    public Unification<Map<String, Object>> getUserInfo(@RequestParam("token") String token) {
         // 根据token获取用户信息
-        Map<String,Object> data = userService.getUserInfo(token); // 调用userService的getUserInfo方法，传递token参数，返回一个Map<String,Object>类型的data
-        if (data!=null){
+        Map<String, Object> data = userService.getUserInfo(token); // 调用userService的getUserInfo方法，传递token参数，返回一个Map<String,Object>类型的data
+        if (data != null) {
             return Unification.success(data); // 如果data不为null，返回成功响应，将data作为响应数据返回
         }
-        return Unification.fail(20003,"登录信息有误，请重新登录"); // 如果data为null，返回失败响应，返回错误码和错误信息
+        return Unification.fail(20003, "登录信息有误，请重新登录"); // 如果data为null，返回失败响应，返回错误码和错误信息
     }
 
 
-
-
     @PostMapping("/logout")
-    public Unification<?> logout(@RequestHeader("X-Token")String token){
+    public Unification<?> logout(@RequestHeader("X-Token") String token) {
         userService.logout(token);//将当前用户的登录状态从系统中注销
         return Unification.success();
     }
 
 
-
     /**
-
-     根据查询条件获取用户列表，分页查询
-
-     @param username 查询条件：用户名，可选
-
-     @param phone 查询条件：手机号，可选
-
-     @param pageNo 当前页码
-
-     @param pageSize 页面大小
-
-     @return 返回Unification包装后的用户列表，包含总数和当前页码的用户信息列表
+     * 根据查询条件获取用户列表，分页查询
+     *
+     * @param username 查询条件：用户名，可选
+     * @param phone    查询条件：手机号，可选
+     * @param pageNo   当前页码
+     * @param pageSize 页面大小
+     * @return 返回Unification包装后的用户列表，包含总数和当前页码的用户信息列表
      */
     @GetMapping("/list")
-    public Unification<Map<String,Object>> getUserList(@RequestParam(value = "username", required = false) String username,
-                                                       @RequestParam(value = "phone", required = false) String phone,
-                                                       @RequestParam("pageNo") Long pageNo,
-                                                       @RequestParam("pageSize") Long pageSize) {
+    public Unification<Map<String, Object>> getUserList(@RequestParam(value = "username", required = false) String username,
+                                                        @RequestParam(value = "phone", required = false) String phone,
+                                                        @RequestParam("pageNo") Long pageNo,
+                                                        @RequestParam("pageSize") Long pageSize) {
 
         LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
 
@@ -152,7 +135,7 @@ public class UserController {
 
 
     @PostMapping("/add")
-    public Unification<?> addUser(@RequestBody User user){
+    public Unification<?> addUser(@RequestBody User user) {
         boolean result = userService.addUser(user);
         if (result) {
             return Unification.success("新增成功");
@@ -162,9 +145,8 @@ public class UserController {
     }
 
 
-
     @PutMapping("/update")
-    public Unification<?> updateUser(@RequestBody User user){
+    public Unification<?> updateUser(@RequestBody User user) {
         user.setPassword(null); // 防止密码被修改，将密码设为null
         userService.updateUser(user);
         return Unification.success("修改成功");
@@ -172,110 +154,100 @@ public class UserController {
 
 
     @GetMapping("/{id}")
-    public Unification<User> getUserById(@PathVariable("id") Integer id){
+    public Unification<User> getUserById(@PathVariable("id") Integer id) {
         // 通过用户id调用userService的getUserById方法获取用户信息
         User user = userService.getUserById(id);
         // 将获取到的用户信息封装成Unification类型并返回
-        return  Unification.success(user);
+        return Unification.success(user);
     }
 
 
     @GetMapping("/getBodyNotes/{id}")
-    public Unification<List<BodyNotes>> getBodyNotes(@PathVariable("id") Integer id){
+    public Unification<List<BodyNotes>> getBodyNotes(@PathVariable("id") Integer id) {
         List<BodyNotes> bodyNotesList = bodyNotesService.getBodyNotes(id);
         if (bodyNotesList == null || bodyNotesList.isEmpty()) { // 判断列表是否为空
             return Unification.fail("没有找到多余的记录");
         }
-        return  Unification.success(bodyNotesList);
+        return Unification.success(bodyNotesList);
     }
 
 
     @GetMapping("/WxgetBodyNotes/{token}")
-    public Unification<Map<String,Object>> WxgetBodyNotes(@PathVariable("token") String token){
+    public Unification<Map<String, Object>> WxgetBodyNotes(@PathVariable("token") String token) {
         // 根据token获取用户信息
-        Map<String,Object> data = userService.WxgetUserId(token);
+        Map<String, Object> data = userService.WxgetUserId(token);
         Integer userId = Integer.parseInt(data.get("id").toString());
         List<BodyNotes> bodyNotes = bodyNotesService.getBodyNotes(userId);
         data.put("bodyNotes", bodyNotes);
         System.out.println(data);
-        if (data != null){
+        if (data != null) {
             return Unification.success(data);
         }
         return Unification.fail();
     }
 
 
-
-
     @DeleteMapping("/{id}")
-    public Unification<User> deleteUserById(@PathVariable("id") Integer id){
+    public Unification<User> deleteUserById(@PathVariable("id") Integer id) {
         userService.deletUserById(id);
-        return  Unification.success("删除成功");
+        return Unification.success("删除成功");
     }
 
 
-
     @PostMapping("/BodyInformation")
-    public Unification<?> BodyInfomationUp(@RequestBody Body body){
+    public Unification<?> BodyInfomationUp(@RequestBody Body body) {
         boolean result = bodyService.insert(body);
-        if(result){
+        if (result) {
             return Unification.success("上传成功");
-        }else{
+        } else {
             return Unification.success("更新成功");
         }
     }
 
 
-
     @PostMapping("/BodyInformationNotes")
-    public Unification<?> BodyInformationNotes(@RequestBody BodyNotes bodyNotes){
+    public Unification<?> BodyInformationNotes(@RequestBody BodyNotes bodyNotes) {
         bodyNotesService.insert(bodyNotes);
         return Unification.success();
     }
 
 
-
     @GetMapping("/getUserId")
-public Unification<Map<String, Object>> getUserId(@RequestHeader("X-Token") String token) {
-    try {
-        User user = jwtConfig.parseToken(token, User.class);
-        if (user != null) {
-            Map<String, Object> data = new HashMap<>();
-            data.put("id", user.getId());
-            return Unification.success(data);
+    public Unification<Map<String, Object>> getUserId(@RequestHeader("X-Token") String token) {
+        try {
+            User user = jwtConfig.parseToken(token, User.class);
+            if (user != null) {
+                Map<String, Object> data = new HashMap<>();
+                data.put("id", user.getId());
+                return Unification.success(data);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-    } catch (Exception e) {
-        e.printStackTrace();
+        return Unification.fail("用户id获取失败");
     }
-    return Unification.fail("用户id获取失败");
-}
-
-
 
 
     @GetMapping("/getBodyInfo")
-public Unification<Map<String, Object>> getBodyInfo(@RequestHeader("X-Token") String token) {
-    try {
-        User user = jwtConfig.parseToken(token, User.class);
-        if (user != null) {
-            Map<String, Object> data = userService.getBodyInfo(user.getId());
-            if (data != null) {
-                return Unification.success(data);
+    public Unification<Map<String, Object>> getBodyInfo(@RequestHeader("X-Token") String token) {
+        try {
+            User user = jwtConfig.parseToken(token, User.class);
+            if (user != null) {
+                Map<String, Object> data = userService.getBodyInfo(user.getId());
+                if (data != null) {
+                    return Unification.success(data);
+                }
             }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-    } catch (Exception e) {
-        e.printStackTrace();
+        return Unification.fail(20002);
     }
-    return Unification.fail(20002);
-}
-
-
-
 
 
     @GetMapping("/getBodyList")
-    public Unification<Map<String,Object>> getBodyList(@RequestParam(value = "name", required = false) String name,
-                                                       @RequestParam(value = "id", required = false) String id,
+    public Unification<Map<String, Object>> getBodyList(@RequestParam(value = "name", required = false) String name,
+                                                        @RequestParam(value = "id", required = false) String id,
                                                         @RequestParam("pageNo") Long pageNo,
                                                         @RequestParam("pageSize") Long pageSize) {
 
@@ -293,100 +265,82 @@ public Unification<Map<String, Object>> getBodyInfo(@RequestHeader("X-Token") St
     }
 
 
-
-
-
     @GetMapping("/getBodyById/{id}")
-    public Unification<Body> getBodyById(@PathVariable("id") Integer id){
+    public Unification<Body> getBodyById(@PathVariable("id") Integer id) {
         // 通过用户id调用userService的getUserById方法获取用户信息
         Body body = bodyService.getBodyById(id);
         // 将获取到的用户信息封装成Unification类型并返回
-        return  Unification.success(body);
+        return Unification.success(body);
     }
 
 
-
     @RequestMapping("/updateBody")
-    public Unification<?> updateBody(@RequestBody Body body){
+    public Unification<?> updateBody(@RequestBody Body body) {
         bodyService.updateBody(body);
         return Unification.success("修改成功");
     }
 
 
     @DeleteMapping("/deleteBodyById/{id}")
-    public Unification<SportInfo> deleteBodyById(@PathVariable("id") Integer id){
+    public Unification<SportInfo> deleteBodyById(@PathVariable("id") Integer id) {
         bodyService.deletBodyById(id);
         bodyNotesService.delete(id);
-        return  Unification.success("删除成功");
+        return Unification.success("删除成功");
     }
 
 
-
-
-
     @PutMapping("/changePassword")
-    public Unification<?> changePassword(@RequestBody User user){
-        if (userService.updateuser(user)){
+    public Unification<?> changePassword(@RequestBody User user) {
+        if (userService.updateuser(user)) {
             return Unification.success("修改成功，本次已为您登陆，下次登陆请用您的新密码");
         }
         return Unification.fail("修改失败，用户名或密码错误");
     }
 
 
-
-
-
-
-
-
-
-
-
-
     @GetMapping("/getUserBodyList")
-public Unification<Map<String, Object>> getUserBodyList(
-        @RequestHeader("X-Token") String token,
-        @RequestParam("pageNo") Long pageNo,
-        @RequestParam("pageSize") Long pageSize) {
-    try {
-        User user = jwtConfig.parseToken(token, User.class);
-        if (user != null) {
-            LambdaQueryWrapper<BodyNotes> wrapper = new LambdaQueryWrapper<>();
-            wrapper.eq(BodyNotes::getId, user.getId());
-            Page<BodyNotes> page = new Page<>(pageNo, pageSize);
-            bodyNotesService.page(page, wrapper);
-            Map<String, Object> data = new HashMap<>();
-            data.put("total", page.getTotal());
-            data.put("rows", page.getRecords());
-            return Unification.success(data);
+    public Unification<Map<String, Object>> getUserBodyList(
+            @RequestHeader("X-Token") String token,
+            @RequestParam("pageNo") Long pageNo,
+            @RequestParam("pageSize") Long pageSize) {
+        try {
+            User user = jwtConfig.parseToken(token, User.class);
+            if (user != null) {
+                LambdaQueryWrapper<BodyNotes> wrapper = new LambdaQueryWrapper<>();
+                wrapper.eq(BodyNotes::getId, user.getId());
+                Page<BodyNotes> page = new Page<>(pageNo, pageSize);
+                bodyNotesService.page(page, wrapper);
+                Map<String, Object> data = new HashMap<>();
+                data.put("total", page.getTotal());
+                data.put("rows", page.getRecords());
+                return Unification.success(data);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-    } catch (Exception e) {
-        e.printStackTrace();
+        return Unification.fail("用户信息获取失败");
     }
-    return Unification.fail("用户信息获取失败");
-}
 
 
     @GetMapping("/getUserBodyById/{notesid}")
-    public Unification<BodyNotes> getUserBodyById(@PathVariable("notesid") Integer notesid){
+    public Unification<BodyNotes> getUserBodyById(@PathVariable("notesid") Integer notesid) {
         System.out.println(notesid);
         BodyNotes bodyNotes = bodyNotesService.getUserBodyById(notesid);
-        return  Unification.success(bodyNotes);
+        return Unification.success(bodyNotes);
     }
 
     @RequestMapping("/updateUserBody")
-    public Unification<?> updateUserBody(@RequestBody BodyNotes bodyNotes){
+    public Unification<?> updateUserBody(@RequestBody BodyNotes bodyNotes) {
         bodyNotesService.updateUserBody(bodyNotes);
         return Unification.success("修改成功");
     }
 
 
     @DeleteMapping("/deleteUserBodyById/{notesid}")
-    public Unification<SportInfo> deleteUserBodyById(@PathVariable("notesid") Integer notesid){
+    public Unification<SportInfo> deleteUserBodyById(@PathVariable("notesid") Integer notesid) {
         bodyNotesService.deleteUserBodyById(notesid);
-        return  Unification.success("删除成功");
+        return Unification.success("删除成功");
     }
-
 
 
 }

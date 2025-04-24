@@ -16,18 +16,18 @@ import java.util.UUID;
 @Component
 public class JwtConfig {
     // 有效期
-    private static final long JWT_EXPIRE = 60*180*1000L;  //1小时
+    private static final long JWT_EXPIRE = 60 * 180 * 1000L;  //1小时
     // 令牌秘钥
     private static final String JWT_KEY = "123456";
 
-    public  String createToken(Object data){
+    public String createToken(Object data) {
         // 当前时间
         long currentTime = System.currentTimeMillis();
         // 过期时间
-        long expTime = currentTime+JWT_EXPIRE;
+        long expTime = currentTime + JWT_EXPIRE;
         // 构建jwt
         JwtBuilder builder = Jwts.builder()
-                .setId(UUID.randomUUID()+"")
+                .setId(UUID.randomUUID() + "")
                 .setSubject(JSON.toJSONString(data))
                 .setIssuer("system")
                 .setIssuedAt(new Date(currentTime))
@@ -36,13 +36,13 @@ public class JwtConfig {
         return builder.compact();
     }
 
-    private SecretKey encodeSecret(String key){
+    private SecretKey encodeSecret(String key) {
         byte[] encode = Base64.getEncoder().encode(key.getBytes());
         SecretKeySpec aes = new SecretKeySpec(encode, 0, encode.length, "AES");
-        return  aes;
+        return aes;
     }
 
-    public Claims parseToken(String token){
+    public Claims parseToken(String token) {
         Claims body = Jwts.parser()
                 .setSigningKey(encodeSecret(JWT_KEY))
                 .parseClaimsJws(token)
@@ -50,12 +50,12 @@ public class JwtConfig {
         return body;
     }
 
-    public <T> T parseToken(String token,Class<T> clazz){
+    public <T> T parseToken(String token, Class<T> clazz) {
         Claims body = Jwts.parser()
                 .setSigningKey(encodeSecret(JWT_KEY))
                 .parseClaimsJws(token)
                 .getBody();
-        return JSON.parseObject(body.getSubject(),clazz);
+        return JSON.parseObject(body.getSubject(), clazz);
     }
 
 }

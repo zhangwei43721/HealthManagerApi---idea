@@ -3,7 +3,7 @@ package com.rabbiter.healthsys.controller;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.rabbiter.healthsys.common.Unification;
-import com.rabbiter.healthsys.entity.*;
+import com.rabbiter.healthsys.entity.SportInfo;
 import com.rabbiter.healthsys.service.ISportInfoService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.util.StringUtils;
@@ -35,12 +35,10 @@ public class SportInfoController {
     }
 
 
-
-
     @GetMapping("/getSportList")
-    public Unification<Map<String,Object>> getSportList(@RequestParam(value = "sportType", required = false) String sportType,
-                                                       @RequestParam("pageNo") Long pageNo,
-                                                       @RequestParam("pageSize") Long pageSize) {
+    public Unification<Map<String, Object>> getSportList(@RequestParam(value = "sportType", required = false) String sportType,
+                                                         @RequestParam("pageNo") Long pageNo,
+                                                         @RequestParam("pageSize") Long pageSize) {
 
         LambdaQueryWrapper<SportInfo> wrapper = new LambdaQueryWrapper<>(); // 构建查询条件
         wrapper.eq(StringUtils.hasLength(sportType), SportInfo::getSportType, sportType); // 如果sportType参数不为空，则添加运动类型查询条件
@@ -55,8 +53,6 @@ public class SportInfoController {
     }
 
 
-
-
     @PostMapping("/add")
     public Unification<?> addSport(@RequestBody SportInfo sport) {
         boolean isSuccess = sportInfoService.addSport(sport);
@@ -68,35 +64,27 @@ public class SportInfoController {
     }
 
 
-
     @PutMapping("/update")
-    public Unification<?> updateSport(@RequestBody SportInfo sport){
+    public Unification<?> updateSport(@RequestBody SportInfo sport) {
         sportInfoService.updateSport(sport);
         return Unification.success("修改成功");
     }
 
 
     @GetMapping("/{id}")
-    public Unification<SportInfo> getSportById(@PathVariable("id") Integer id){
+    public Unification<SportInfo> getSportById(@PathVariable("id") Integer id) {
         // 通过用户id调用userService的getUserById方法获取用户信息
         SportInfo sportInfo = sportInfoService.getSportById(id);
         // 将获取到的用户信息封装成Unification类型并返回
-        return  Unification.success(sportInfo);
+        return Unification.success(sportInfo);
     }
 
 
     @DeleteMapping("/{id}")
-    public Unification<SportInfo> deletSportById(@PathVariable("id") Integer id){
+    public Unification<SportInfo> deletSportById(@PathVariable("id") Integer id) {
         sportInfoService.deletUserById(id);
-        return  Unification.success("删除成功");
+        return Unification.success("删除成功");
     }
-
-
-
-
-
-
-
 
 
 }

@@ -9,7 +9,6 @@ import com.rabbiter.healthsys.service.IBodyNotesService;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
-
 import java.util.Date;
 import java.util.List;
 
@@ -39,7 +38,6 @@ public class BodyNotesServiceImpl extends ServiceImpl<BodyNotesMapper, BodyNotes
         wrapper.eq("id", id);
         baseMapper.delete(wrapper);
     }
-
 
 
     @Override

@@ -37,13 +37,6 @@ public class BodyServiceImpl extends ServiceImpl<BodyMapper, Body> implements IB
     }
 
 
-
-
-
-
-
-
-
     @Override
     public void update(Body body) {
         this.baseMapper.updateById(body);
@@ -73,15 +66,6 @@ public class BodyServiceImpl extends ServiceImpl<BodyMapper, Body> implements IB
         this.baseMapper.deleteById(id);
         //删除BodyNotes表中与
     }
-
-
-
-
-
-
-
-
-
 
 
 }

@@ -1,12 +1,12 @@
 package com.rabbiter.healthsys.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.rabbiter.healthsys.entity.Role;
 import com.rabbiter.healthsys.entity.RoleMenu;
 import com.rabbiter.healthsys.mapper.RoleMapper;
 import com.rabbiter.healthsys.mapper.RoleMenuMapper;
 import com.rabbiter.healthsys.service.IRoleService;
-import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
@@ -15,10 +15,10 @@ import java.util.List;
 
 /**
  * <p>
- *  服务实现类
+ * 服务实现类
  * </p>
  *
- * @author 
+ * @author
  * @since 2024-07-23
  */
 
@@ -35,9 +35,9 @@ public class RoleServiceImpl extends ServiceImpl<RoleMapper, Role> implements IR
         LambdaQueryWrapper<Role> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Role::getRoleName, role.getRoleName());
         int count = this.baseMapper.selectCount(wrapper).intValue();
-        if (count>0){
+        if (count > 0) {
             return false;
-        }else{
+        } else {
             this.baseMapper.insert(role);
             // 写入角色菜单关系表
             if (role.getMenuIdList() != null) {

@@ -1,14 +1,14 @@
 package com.rabbiter.healthsys.service;
 
-import com.rabbiter.healthsys.entity.UserRole;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.rabbiter.healthsys.entity.UserRole;
 
 /**
  * <p>
- *  服务类
+ * 服务类
  * </p>
  *
- * @author 
+ * @author
  * @since 2024-07-23
  */
 public interface IUserRoleService extends IService<UserRole> {

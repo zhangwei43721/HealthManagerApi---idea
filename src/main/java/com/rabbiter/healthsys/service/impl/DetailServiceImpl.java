@@ -27,8 +27,6 @@ public class DetailServiceImpl extends ServiceImpl<DetailMapper, Detail> impleme
     }
 
 
-
-
     @Transactional
     @Override
     public boolean addDetail(Detail detail) {

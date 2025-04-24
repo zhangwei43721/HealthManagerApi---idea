@@ -13,10 +13,10 @@ import java.util.List;
 
 /**
  * <p>
- *  前端控制器
+ * 前端控制器
  * </p>
  *
- * @author 
+ * @author
  * @since 2024-07-23
  */
 @RestController
@@ -27,11 +27,12 @@ public class MenuController {
 
     /**
      * 查询所有菜单数据
+     *
      * @return 返回Unification对象，包含查询到的所有菜单数据
      */
     @ApiOperation("查询所有菜单数据")
     @GetMapping
-    public Unification<List<Menu>> getAllMenu(){
+    public Unification<List<Menu>> getAllMenu() {
         List<Menu> menuList = menuService.getAllMenu();
         return Unification.success(menuList);
     }

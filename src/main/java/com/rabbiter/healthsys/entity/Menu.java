@@ -5,9 +5,9 @@ import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
 
 import java.io.Serializable;
 import java.util.HashMap;
@@ -46,16 +46,25 @@ public class Menu implements Serializable {
     private List<Menu> children;
 
     @TableField(exist = false)
-    private Map<String,Object> meta;
-    public Map<String,Object> getMeta(){
+    private Map<String, Object> meta;
+
+    public Map<String, Object> getMeta() {
         meta = new HashMap<>();
-        meta.put("title",title);
-        meta.put("icon",icon);
+        meta.put("title", title);
+        meta.put("icon", icon);
         return meta;
+    }
+
+    public void setMeta(Map<String, Object> meta) {
+        this.meta = meta;
     }
 
     public Integer getMenuId() {
         return menuId;
+    }
+
+    public void setMenuId(Integer menuId) {
+        this.menuId = menuId;
     }
 
     @Override
@@ -74,10 +83,6 @@ public class Menu implements Serializable {
                 ", children=" + children +
                 ", meta=" + meta +
                 '}';
-    }
-
-    public void setMenuId(Integer menuId) {
-        this.menuId = menuId;
     }
 
     public String getComponent() {
@@ -158,10 +163,6 @@ public class Menu implements Serializable {
 
     public void setChildren(List<Menu> children) {
         this.children = children;
-    }
-
-    public void setMeta(Map<String, Object> meta) {
-        this.meta = meta;
     }
 
 }

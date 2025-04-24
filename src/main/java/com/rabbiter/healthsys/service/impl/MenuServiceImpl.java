@@ -1,20 +1,12 @@
 package com.rabbiter.healthsys.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.rabbiter.healthsys.entity.Menu;
 import com.rabbiter.healthsys.mapper.MenuMapper;
 import com.rabbiter.healthsys.service.IMenuService;
-import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.springframework.stereotype.Service;
 
-/**
- * <p>
- *  服务实现类
- * </p>
- *
- * @author 
- * @since 2024-07-23
- */
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import java.util.List;
 
 @Service
@@ -23,7 +15,7 @@ public class MenuServiceImpl extends ServiceImpl<MenuMapper, Menu> implements IM
     public List<Menu> getAllMenu() {
         LambdaQueryWrapper<Menu> wrapper = new LambdaQueryWrapper<>();
         // 查询所有一级菜单，其父菜单ID为0
-        wrapper.eq(Menu::getParentId,0);
+        wrapper.eq(Menu::getParentId, 0);
         // 获取所有一级菜单
         List<Menu> menuList = this.list(wrapper);
         // 为一级菜单设置子菜单
@@ -33,11 +25,11 @@ public class MenuServiceImpl extends ServiceImpl<MenuMapper, Menu> implements IM
 
     // 递归设置子菜单
     private void setMenuChildren(List<Menu> menuList) {
-        if(menuList != null){
+        if (menuList != null) {
             for (Menu menu : menuList) {
                 LambdaQueryWrapper<Menu> subWrapper = new LambdaQueryWrapper<>();
                 // 查询该菜单下所有的子菜单
-                subWrapper.eq(Menu::getParentId,menu.getMenuId());
+                subWrapper.eq(Menu::getParentId, menu.getMenuId());
                 List<Menu> subMenuList = this.list(subWrapper);
                 // 为该菜单设置子菜单
                 menu.setChildren(subMenuList);
@@ -60,7 +52,7 @@ public class MenuServiceImpl extends ServiceImpl<MenuMapper, Menu> implements IM
     // 递归设置用户能访问的子菜单
     private void setMenuChildrenByUserId(Integer userId, List<Menu> menuList) {
         // 如果菜单列表不为空
-        if(menuList != null){
+        if (menuList != null) {
             // 遍历所有菜单
             for (Menu menu : menuList) {
                 // 查询该用户能访问的该菜单下所有的子菜单
@@ -68,7 +60,7 @@ public class MenuServiceImpl extends ServiceImpl<MenuMapper, Menu> implements IM
                 // 为该菜单设置子菜单
                 menu.setChildren(subMenuList);
                 // 递归设置子菜单
-                setMenuChildrenByUserId(userId,subMenuList);
+                setMenuChildrenByUserId(userId, subMenuList);
             }
         }
     }

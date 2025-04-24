@@ -4,9 +4,9 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
 
 import java.util.Date;
 
@@ -21,7 +21,7 @@ public class BodyNotes {
     @TableField(value = "id")
     private Integer id;
 
-    @TableId(value = "notes_id",type = IdType.AUTO)
+    @TableId(value = "notes_id", type = IdType.AUTO)
     private Integer notesid;
     private String name;
     private Integer age;
@@ -62,6 +62,10 @@ public class BodyNotes {
         return id;
     }
 
+    public void setId(Integer id) {
+        this.id = id;
+    }
+
     @Override
     public String toString() {
         return "BodyNotes{" +
@@ -86,10 +90,6 @@ public class BodyNotes {
                 ", waterConsumption=" + waterConsumption +
                 ", Date=" + Date +
                 '}';
-    }
-
-    public void setId(Integer id) {
-        this.id = id;
     }
 
     public Integer getNotesid() {

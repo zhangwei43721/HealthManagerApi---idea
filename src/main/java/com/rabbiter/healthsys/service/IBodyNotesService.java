@@ -16,7 +16,7 @@ public interface IBodyNotesService extends IService<BodyNotes> {
 
     void delete(Integer id);
 
-    BodyNotes getUserBodyById(Integer  notesid);
+    BodyNotes getUserBodyById(Integer notesid);
 
     void updateUserBody(BodyNotes bodyNotes);
 

@@ -10,13 +10,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
-
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.concurrent.Executors;
+
 //联网ai服务端
 @RestController
 public class OpenAiController {
@@ -24,6 +24,7 @@ public class OpenAiController {
     // 注入Ai服务
     @Autowired
     private AiService aiService;
+
     @GetMapping("/chatStream")
     public SseEmitter getChatMessageStream(@RequestParam String question) {
         SseEmitter emitter = new SseEmitter();

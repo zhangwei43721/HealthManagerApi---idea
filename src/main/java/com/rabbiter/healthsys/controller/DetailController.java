@@ -33,9 +33,9 @@ public class DetailController {
     }
 
     @GetMapping("/getDetailList")
-    public Unification<Map<String,Object>> getDetailList(@RequestParam(value = "sportType", required = false) String sportType,
-                                                         @RequestParam("pageNo") Long pageNo,
-                                                         @RequestParam("pageSize") Long pageSize) {
+    public Unification<Map<String, Object>> getDetailList(@RequestParam(value = "sportType", required = false) String sportType,
+                                                          @RequestParam("pageNo") Long pageNo,
+                                                          @RequestParam("pageSize") Long pageSize) {
 
         LambdaQueryWrapper<Detail> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(StringUtils.hasLength(sportType), Detail::getSportType, sportType); // 如果sportType参数不为空，则添加运动类型查询条件
@@ -61,23 +61,23 @@ public class DetailController {
     }
 
     @PutMapping("/updateDetail")
-    public Unification<?> updateDetail(@RequestBody Detail detail){
+    public Unification<?> updateDetail(@RequestBody Detail detail) {
         detailService.updateDetail(detail);
         return Unification.success("修改成功");
     }
 
     @GetMapping("/getDetailById/{id}")
-    public Unification<Detail> getDetailById(@PathVariable("id") Integer id){
+    public Unification<Detail> getDetailById(@PathVariable("id") Integer id) {
         // 通过用户id调用userService的getUserById方法获取用户信息
         Detail detail = detailService.getDetailById(id);
         // 将获取到的用户信息封装成Unification类型并返回
-        return  Unification.success(detail);
+        return Unification.success(detail);
     }
 
     @DeleteMapping("/deleteDetailById/{id}")
-    public Unification<Detail> deleteDetailById(@PathVariable("id") Integer id){
+    public Unification<Detail> deleteDetailById(@PathVariable("id") Integer id) {
         detailService.deletDetailById(id);
-        return  Unification.success("删除成功");
+        return Unification.success("删除成功");
     }
 
 
