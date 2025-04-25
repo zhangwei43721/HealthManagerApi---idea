@@ -14,7 +14,6 @@ import com.rabbiter.healthsys.service.IBodyService;
 import com.rabbiter.healthsys.service.IUserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
@@ -23,24 +22,25 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * <p>
- * 前端控制器
- * </p>
+ * 用户相关操作的前端控制器。
+ * 提供用户的注册、登录、信息获取、体征信息管理等功能接口。
  *
- * @author
+ * @author Skyforever
  * @since 2024-07-23
  */
-//声明此类是一个RestController，即RESTful风格的控制器，控制用户相关的请求。
-//是一种设计风格，通过URI来定位资源，并使用HTTP协议中的请求方式（GET、POST、PUT、DELETE等）对资源进行操作
 @RestController
 @RequestMapping("/user")
 @RequiredArgsConstructor
 @Slf4j
 public class UserController {
-    private final JwtConfig jwtConfig;
-    private final IUserService userService;
-    private final IBodyService bodyService;
-    private final IBodyNotesService bodyNotesService;
+    /** JWT 配置类，用于解析和校验用户 token */
+private final JwtConfig jwtConfig;
+/** 用户服务，处理用户相关的业务逻辑 */
+private final IUserService userService;
+/** 体征服务，处理体征信息相关的业务逻辑 */
+private final IBodyService bodyService;
+/** 体征记录服务，处理体征日志相关的业务逻辑 */
+private final IBodyNotesService bodyNotesService;
 
     /**
      * 获取所有用户
@@ -178,10 +178,7 @@ public class UserController {
         List<BodyNotes> bodyNotes = bodyNotesService.getBodyNotes(userId);
         data.put("bodyNotes", bodyNotes);
         System.out.println(data);
-        if (data != null) {
-            return Unification.success(data);
-        }
-        return Unification.fail();
+        return Unification.success(data);
     }
 
 
@@ -320,6 +317,18 @@ public class UserController {
     }
 
 
+        /**
+     * 根据体征记录ID获取单条体征记录详情。
+     * <p>
+     * 请求方式：GET<br>
+     * 路径参数：notesid - 体征记录ID
+     * </p>
+     * @param notesid 体征记录ID
+     * @return Unification<BodyNotes> 返回指定ID的体征记录详情，若不存在则返回null。
+     * <pre>
+     * 示例：GET /user/getUserBodyById/123
+     * </pre>
+     */
     @GetMapping("/getUserBodyById/{notesid}")
     public Unification<BodyNotes> getUserBodyById(@PathVariable("notesid") Integer notesid) {
         System.out.println(notesid);
@@ -327,6 +336,23 @@ public class UserController {
         return Unification.success(bodyNotes);
     }
 
+        /**
+     * 更新用户体征记录。
+     * <p>
+     * 请求方式：POST/PUT<br>
+     * 请求体：BodyNotes 对象，包含要更新的体征记录信息
+     * </p>
+     * @param bodyNotes 要更新的体征记录对象
+     * @return Unification<?> 操作结果，成功返回“修改成功”
+     * <pre>
+     * 示例：POST /user/updateUserBody
+     * {
+     *   "id": 123,
+     *   "height": 180,
+     *   "weight": 70
+     * }
+     * </pre>
+     */
     @RequestMapping("/updateUserBody")
     public Unification<?> updateUserBody(@RequestBody BodyNotes bodyNotes) {
         bodyNotesService.updateUserBody(bodyNotes);
@@ -334,6 +360,18 @@ public class UserController {
     }
 
 
+        /**
+     * 根据体征记录ID删除用户体征记录。
+     * <p>
+     * 请求方式：DELETE<br>
+     * 路径参数：notesid - 体征记录ID
+     * </p>
+     * @param notesid 体征记录ID
+     * @return Unification<SportInfo> 操作结果，成功返回“删除成功”
+     * <pre>
+     * 示例：DELETE /user/deleteUserBodyById/123
+     * </pre>
+     */
     @DeleteMapping("/deleteUserBodyById/{notesid}")
     public Unification<SportInfo> deleteUserBodyById(@PathVariable("notesid") Integer notesid) {
         bodyNotesService.deleteUserBodyById(notesid);
