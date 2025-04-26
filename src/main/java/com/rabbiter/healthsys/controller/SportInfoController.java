@@ -25,15 +25,14 @@ public class SportInfoController {
 
     //获取所有运动知识
     @GetMapping("/getAllSportInfo")
-    public Map<String, Object> getAllSportInfo() {
-        List<SportInfo> sportInfos = sportInfoService.getAllSportInfos();
-        Map<String, Object> response = new HashMap<>();
+    public Unification<Map<String, Object>> getAllSportInfo(@RequestParam("pageNo") Long pageNo,
+                                                          @RequestParam("pageSize") Long pageSize) {
+        Page<SportInfo> page = new Page<>(pageNo, pageSize);
+        sportInfoService.page(page, null);
         Map<String, Object> data = new HashMap<>();
-        data.put("sportInfos", sportInfos);
-        response.put("code", 20000);
-        response.put("message", "success");
-        response.put("data", data);
-        return response;
+        data.put("total", page.getTotal());
+        data.put("rows", page.getRecords());
+        return Unification.success(data);
     }
 
 
