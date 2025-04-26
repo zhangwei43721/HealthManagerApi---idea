@@ -1,6 +1,5 @@
 package com.rabbiter.healthsys.controller;
 
-// 导入 AI4J 库的类，使用 io.github.lnyocly.ai4j 包名
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import io.github.lnyocly.ai4j.listener.SseListener;
 import io.github.lnyocly.ai4j.platform.openai.chat.entity.ChatCompletion;
@@ -9,19 +8,18 @@ import io.github.lnyocly.ai4j.service.IChatService;
 import io.github.lnyocly.ai4j.service.PlatformType;
 import io.github.lnyocly.ai4j.service.factor.AiService;
 
-// 导入我们新创建的 Service 和 Entity
 import com.rabbiter.healthsys.entity.ChatHistory;
 import com.rabbiter.healthsys.service.IChatHistoryService;
-import com.rabbiter.healthsys.config.JwtConfig; // 导入 JwtConfig
-import com.rabbiter.healthsys.entity.User; // 导入 User Entity
+import com.rabbiter.healthsys.config.JwtConfig;
+import com.rabbiter.healthsys.entity.User;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.sse.EventSource;
 import okhttp3.Response;
 
-import org.jetbrains.annotations.NotNull; // 保持原有的NotNull导入
-import org.springframework.web.bind.annotation.*; // 导入 @RequestHeader
+import org.jetbrains.annotations.NotNull;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
@@ -31,17 +29,14 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 
-//联网ai服务端
 @RestController
 @RequiredArgsConstructor
 @Slf4j
-// 可以给 AI 相关的接口设置一个统一的前缀，例如 /api/ai 或 /ai
-// @RequestMapping("/api/ai") // 示例：添加一个统一的请求路径前缀
 public class OpenAiController {
 
     private final AiService aiService;
     private final IChatHistoryService chatHistoryService;
-    private final JwtConfig jwtConfig; // 注入 JwtConfig 用于解析 Token
+    private final JwtConfig jwtConfig;
 
     /**
      * AI 聊天流接口。通过用户 token 识别用户，处理对话流和历史记录。
@@ -101,7 +96,7 @@ public class OpenAiController {
             log.info("使用现有对话ID: {} for user {}", currentConversationId, userId);
         }
 
-        final String finalConversationId = currentConversationId; // 用于 Lambda 表达式
+        final String finalConversationId = currentConversationId;
 
         IChatService chatService = aiService.getChatService(PlatformType.DEEPSEEK);
 
@@ -129,22 +124,14 @@ public class OpenAiController {
 
         Executors.newSingleThreadExecutor().submit(() -> {
             SseListener sseListener = new SseListener() {
-
-                // --- 必须实现的 abstract 方法 ---
                 // SseListener 要求实现 send() 方法，负责将数据块发送到客户端
                 @Override
                 protected void send() {
                     try {
                         String currentData = this.getCurrData();
                         if (currentData != null && !currentData.isEmpty()) {
-                            // 恢复原始的发送逻辑：转换为 UTF-8 字节并发送
-                            // 如果前端需要标准的 SSE data: 格式，这里要改回 emitter.send(SseEmitter.event().data(currentData));
-                            // 根据你的描述乱码问题，这里保持发送原始字节流。
                             byte[] utf8Bytes = currentData.getBytes(StandardCharsets.UTF_8);
                             emitter.send(utf8Bytes);
-                            // log.debug("[Server] Sent raw UTF-8 bytes successfully for: [" + currentData + "]");
-                        } else {
-                            // log.debug("[Server] Received empty or null data chunk via send(), skipping.");
                         }
                     } catch (IOException e) {
                         log.error("Error sending SSE chunk to emitter via send(): {}", e.getMessage(), e);
@@ -158,63 +145,27 @@ public class OpenAiController {
                         if (es != null) { es.cancel(); }
                     }
                 }
-
-                // --- 其他覆盖方法，根据之前的错误，这些需要是 public ---
-
                 @Override
                 public void onOpen(@NotNull EventSource eventSource, @NotNull Response response) {
                     log.info("AI Stream connection opened. Response code: {}", response.code());
                 }
 
-                @Override
-                public void onClosed(@NotNull EventSource eventSource) {
-                    log.info("AI Stream connection closed.");
+            // 将数据库保存逻辑迁移至onClosed()方法：
+            @Override
+            public void onClosed(@NotNull EventSource eventSource) {
+                log.info("AI Stream connection closed.");
+                // 获取完整的AI回复（需确保在流关闭时已累积全部数据）
+                String assistantResponse = getOutput().toString();
+                if (!assistantResponse.trim().isEmpty()) {
+                    ChatMessage assistantMessage = ChatMessage.withAssistant(assistantResponse);
+                    ChatHistory assistantChatHistory = ChatHistory.fromChatMessage(userId, finalConversationId, assistantMessage);
+                    chatHistoryService.save(assistantChatHistory);
+                    log.info("AI回复已保存到数据库。用户ID: {}, 对话ID: {}", userId, finalConversationId);
+                } else {
+                    log.warn("AI回复为空或只有空白字符，未保存到数据库。");
                 }
+            }
 
-                // onComplete 方法需要是 public
-                public void onComplete() {
-                    log.info("AI Stream completed (SseListener onComplete).");
-                    // 获取完整的 AI 回复
-                    String assistantResponse = getOutput().toString();
-                    log.info("完整的AI回复：{}", assistantResponse != null ? assistantResponse.substring(0, Math.min(assistantResponse.length(), 200)) + (assistantResponse.length() > 200 ? "..." : "") : "null");
-
-                    if (assistantResponse != null && !assistantResponse.trim().isEmpty()) {
-                        // --- 保存 AI 回复到数据库 ---
-                        ChatMessage assistantMessage = ChatMessage.withAssistant(assistantResponse);
-                        ChatHistory assistantChatHistory = ChatHistory.fromChatMessage(userId, finalConversationId, assistantMessage); // 使用解析出的 userId 和 finalConversationId
-                        chatHistoryService.save(assistantChatHistory); // 使用 Service 保存到数据库
-                        log.info("AI回复已保存到数据库。用户ID: {}, 对话ID: {}", userId, finalConversationId);
-                    } else {
-                        log.warn("AI回复为空或只有空白字符，未保存到数据库。");
-                    }
-
-                    // 通知 emitter 完成
-                    try {
-                        emitter.complete();
-                        log.info("Emitter completed successfully from SseListener onComplete.");
-                    } catch (Exception e) {
-                        log.error("Error during emitter.complete() in onComplete: {}", e.getMessage(), e);
-                    }
-                }
-
-                // onError 方法需要是 public
-                public void onError(Throwable t) {
-                    log.error("AI Stream error (SseListener onError): {}", t.getMessage(), t);
-                    // 通知 emitter 完成并带上错误
-                    try {
-                        emitter.completeWithError(t);
-                        log.error("Emitter completed with error from SseListener onError.");
-                    } catch (Exception e) {
-                        log.error("Error during emitter.completeWithError() in onError: {}", e.getMessage(), e);
-                    }
-
-                    // 取消 EventSource
-                    EventSource es = getEventSource();
-                    if (es != null) {
-                        log.info("Cancelling EventSource from listener error.");
-                        es.cancel();
-                    }
-                }
             };
 
             // --- Emitter 事件处理 ---
@@ -247,7 +198,6 @@ public class OpenAiController {
                 log.error("Emitter error handler finished.");
             });
 
-            // --- 执行 AI 聊天流请求 ---
             try {
                 log.info("用户 {} 对话 {} 调用 chatCompletionStream 开始流式处理...", userId, finalConversationId);
                 chatService.chatCompletionStream(chatCompletion, sseListener);
@@ -323,7 +273,7 @@ public class OpenAiController {
             return "删除失败：认证信息无效或过期，请重新登录。";
         }
 
-        int deletedCount = 0;
+        int deletedCount;
         if (conversationId != null && !conversationId.trim().isEmpty()) {
             // 删除特定对话
             deletedCount = chatHistoryService.deleteChatHistoryByUserIdAndConversationId(userId, conversationId);
