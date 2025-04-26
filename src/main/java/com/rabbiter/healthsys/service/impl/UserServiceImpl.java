@@ -15,10 +15,8 @@ import com.rabbiter.healthsys.service.IUserRoleService;
 import com.rabbiter.healthsys.service.IUserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.Resource;
 import javax.transaction.Transactional;
 import java.util.HashMap;
 import java.util.List;
@@ -30,7 +28,7 @@ import java.util.stream.Collectors;
  * 服务实现类
  * </p>
  *
- * @author
+ * @author 舒浩然
  * @since 2024-07-23
  */
 @Service
@@ -161,9 +159,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
 
         // 将用户角色ID列表设置到用户对象中
         List<Integer> roleIdList = userRoleList.stream() // 将 userRoleList 转化为一个 Stream<UserRole> 对象，使得可以对其中的每一个元素进行操作
-                .map(userRole -> {
-                    return userRole.getRoleId();
-                })
+                .map(UserRole::getRoleId)
                 .collect(Collectors.toList()); // 将每个roleId值收集到一个List<Integer>对象中，并赋值给roleIdList变量
         user.setRoleIdList(roleIdList); // 将roleIdList设置到user对象中的roleIdList属性中
 
@@ -308,11 +304,20 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
             return false;
         }
         
+        // 日志输出当前头像和新头像
+        log.info("更新用户头像: userId={}, 原头像={}, 新头像={}", userId, user.getAvatar(), avatarUrl);
+        
         // 更新用户头像
         user.setAvatar(avatarUrl);
         int result = this.baseMapper.updateById(user);
         
-        return result > 0;
+        if (result > 0) {
+            log.info("用户头像更新成功: userId={}", userId);
+            return true;
+        } else {
+            log.error("用户头像更新失败: userId={}", userId);
+            return false;
+        }
     }
 
 }
