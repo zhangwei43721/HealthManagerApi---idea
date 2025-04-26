@@ -47,7 +47,7 @@ public class OpenAiController {
      */
     @GetMapping("/chatStream")
     public SseEmitter getChatMessageStream(
-            @RequestHeader("X-Token") String token, // 从 Header 获取 Token
+            @RequestParam String token, // 从 Header 获取 Token
             @RequestParam String question,
             @RequestParam(required = false) String conversationId
     ) {
