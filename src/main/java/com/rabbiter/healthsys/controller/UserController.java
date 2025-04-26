@@ -145,7 +145,17 @@ private final IBodyNotesService bodyNotesService;
 
     @PutMapping("/update")
     public Unification<?> updateUser(@RequestBody User user) {
-        user.setPassword(null); // 防止密码被修改，将密码设为null
+        // 防止密码被修改，将密码设为null
+        user.setPassword(null);
+        
+        // 如果没有提供头像信息，则从数据库获取原来的头像信息
+        if (user.getAvatar() == null || user.getAvatar().isEmpty()) {
+            User dbUser = userService.getUserById(user.getId());
+            if (dbUser != null) {
+                user.setAvatar(dbUser.getAvatar());
+            }
+        }
+        
         userService.updateUser(user);
         return Unification.success("修改成功");
     }
@@ -343,7 +353,7 @@ private final IBodyNotesService bodyNotesService;
      * 请求体：BodyNotes 对象，包含要更新的体征记录信息
      * </p>
      * @param bodyNotes 要更新的体征记录对象
-     * @return Unification<?> 操作结果，成功返回“修改成功”
+     * @return Unification<?> 操作结果，成功返回"修改成功"
      * <pre>
      * 示例：POST /user/updateUserBody
      * {
@@ -367,7 +377,7 @@ private final IBodyNotesService bodyNotesService;
      * 路径参数：notesid - 体征记录ID
      * </p>
      * @param notesid 体征记录ID
-     * @return Unification<SportInfo> 操作结果，成功返回“删除成功”
+     * @return Unification<SportInfo> 操作结果，成功返回"删除成功"
      * <pre>
      * 示例：DELETE /user/deleteUserBodyById/123
      * </pre>
@@ -378,5 +388,22 @@ private final IBodyNotesService bodyNotesService;
         return Unification.success("删除成功");
     }
 
+
+    /**
+     * 更新用户头像
+     * @param userId 用户ID
+     * @param avatarUrl 头像URL
+     * @return 更新结果
+     */
+    @PutMapping("/updateAvatar")
+    public Unification<?> updateUserAvatar(@RequestParam("userId") Integer userId, 
+                                          @RequestParam("avatarUrl") String avatarUrl) {
+        boolean result = userService.updateUserAvatar(userId, avatarUrl);
+        if (result) {
+            return Unification.success("头像更新成功");
+        } else {
+            return Unification.fail("头像更新失败");
+        }
+    }
 
 }

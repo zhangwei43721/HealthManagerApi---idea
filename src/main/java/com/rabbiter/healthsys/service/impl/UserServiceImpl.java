@@ -293,5 +293,26 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         return false;
     }
 
+    /**
+     * 更新用户头像
+     * @param userId 用户ID
+     * @param avatarUrl 头像URL
+     * @return 是否更新成功
+     */
+    @Override
+    public boolean updateUserAvatar(Integer userId, String avatarUrl) {
+        // 查询用户是否存在
+        User user = this.baseMapper.selectById(userId);
+        if (user == null) {
+            log.error("用户不存在，无法更新头像, userId: {}", userId);
+            return false;
+        }
+        
+        // 更新用户头像
+        user.setAvatar(avatarUrl);
+        int result = this.baseMapper.updateById(user);
+        
+        return result > 0;
+    }
 
 }
