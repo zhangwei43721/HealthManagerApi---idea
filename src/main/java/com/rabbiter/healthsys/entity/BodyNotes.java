@@ -8,13 +8,14 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.io.Serializable;
 import java.util.Date;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @TableName("j_body_notes")
-public class BodyNotes {
+public class BodyNotes implements Serializable {
 
     private static final long serialVersionUID = 1L;
 

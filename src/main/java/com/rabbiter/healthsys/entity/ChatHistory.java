@@ -15,8 +15,8 @@ import java.time.LocalDateTime; // 使用 LocalDateTime 对应数据库的 DATET
  * 用户和AI聊天历史记录表
  * </p>
  *
- * @author Your Name // TODO: 改成你的名字
- * @since 2024-07-25 // TODO: 改成当前日期
+ * @author skyforever
+ * @since 2025-04-27
  */
 @Data
 @NoArgsConstructor

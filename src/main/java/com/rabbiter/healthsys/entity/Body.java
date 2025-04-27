@@ -1,5 +1,7 @@
 package com.rabbiter.healthsys.entity;
 
+import java.io.Serializable;
+
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
@@ -12,7 +14,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @TableName("j_body")
-public class Body {
+public class Body implements Serializable {
 
     private static final long serialVersionUID = 1L;
 

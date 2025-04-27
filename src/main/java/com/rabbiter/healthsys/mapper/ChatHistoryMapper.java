@@ -9,8 +9,8 @@ import org.apache.ibatis.annotations.Mapper; // 或者依赖 Spring Boot 的 @Ma
  * 用户和AI聊天历史记录 Mapper 接口
  * </p>
  *
- * @author Your Name // TODO: 改成你的名字
- * @since 2024-07-25 // TODO: 改成当前日期
+ * @author skyforever
+ * @since 2025-04-27
  */
 @Mapper // 如果没有全局 @MapperScan，需要在 Mapper 接口上加 @Mapper
 public interface ChatHistoryMapper extends BaseMapper<ChatHistory> {
