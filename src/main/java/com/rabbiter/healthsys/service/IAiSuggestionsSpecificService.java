@@ -2,6 +2,7 @@ package com.rabbiter.healthsys.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.rabbiter.healthsys.entity.AiSuggestionsSpecific;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 /**
  * <p>
@@ -24,5 +25,32 @@ public interface IAiSuggestionsSpecificService extends IService<AiSuggestionsSpe
     AiSuggestionsSpecific getLatestSuggestionByUserId(Integer userId);
 
     // 其他你可能需要的业务方法...
+    /**
+     * 同步生成历史报告并存库
+     *
+     * @param token 用户认证 Token
+     */
+    void generateHistoricalReport(String token);
 
+    /**
+     * 同步生成当前报告并存库
+     *
+     * @param token 用户认证 Token
+     */
+    void generateCurrentReport(String token);
+
+    /**
+     * 同步生成运动报告并存库
+     *
+     * @param token 用户认证 Token
+     */
+    void generateSportReport(String token);
+
+    /**
+     * 流式获取运动信息建议
+     * @param token 用户认证 Token
+     * @param conversationId 会话 ID
+     * @return SSE 实时流
+     */
+    SseEmitter analyzeSportSuggestion(String token, String conversationId);
 }

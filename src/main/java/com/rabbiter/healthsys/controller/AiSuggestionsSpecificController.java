@@ -7,10 +7,11 @@ import com.rabbiter.healthsys.config.JwtConfig;
 import com.rabbiter.healthsys.entity.User;
 import com.rabbiter.healthsys.entity.AiSuggestionsSpecific;
 import com.rabbiter.healthsys.service.IAiSuggestionsSpecificService;
-import lombok.RequiredArgsConstructor; // 用于构造器注入
-import lombok.extern.slf4j.Slf4j; // 用于日志
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
-
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -89,59 +90,89 @@ public class AiSuggestionsSpecificController {
     }
 
     /**
-     * 获取当前认证用户的历史健康建议 (需要认证)
+     * 获取当前认证用户的历史健康建议
      * @param token 用户认证 Token (从 Header X-Token 获取)
      * @return 历史健康建议
      */
     @GetMapping("/historical")
-    public Unification<String> getHistoricalSuggestion(@RequestHeader("X-Token") String token) {
+    public Unification<Map<String,Object>> getHistoricalSuggestion(@RequestHeader("X-Token") String token) {
         User user = validateTokenAndGetUser(token);
         if (user == null) {
             return Unification.fail("认证失败，请检查Token或重新登录。");
         }
         AiSuggestionsSpecific s = aiSuggestionsSpecificService.getLatestSuggestionByUserId(user.getId());
-        String data = (s != null ? s.getSuggestionHistoricalHealth() : null);
-        if (data == null) {
+        if (s == null) {
             return Unification.fail("未找到历史健康建议");
         }
-        return Unification.success(data);
+        Map<String,Object> res = new HashMap<>();
+        res.put("suggestion", s.getSuggestionHistoricalHealth());
+        res.put("generatedAt", s.getGeneratedAt());
+        return Unification.success(res);
     }
 
     /**
-     * 获取当前认证用户的当前健康建议 (需要认证)
+     * 获取当前认证用户的当前健康建议
      * @param token 用户认证 Token (从 Header X-Token 获取)
      * @return 当前健康建议
      */
     @GetMapping("/current")
-    public Unification<String> getCurrentSuggestion(@RequestHeader("X-Token") String token) {
+    public Unification<Map<String,Object>> getCurrentSuggestion(@RequestHeader("X-Token") String token) {
         User user = validateTokenAndGetUser(token);
         if (user == null) {
             return Unification.fail("认证失败，请检查Token或重新登录。");
         }
         AiSuggestionsSpecific s = aiSuggestionsSpecificService.getLatestSuggestionByUserId(user.getId());
-        String data = (s != null ? s.getSuggestionCurrentHealth() : null);
-        if (data == null) {
+        if (s == null) {
             return Unification.fail("未找到当前健康建议");
         }
-        return Unification.success(data);
+        Map<String,Object> res = new HashMap<>();
+        res.put("suggestion", s.getSuggestionCurrentHealth());
+        res.put("generatedAt", s.getGeneratedAt());
+        return Unification.success(res);
     }
 
     /**
-     * 获取当前认证用户的运动信息建议 (需要认证)
+     * 获取当前认证用户的运动信息建议
      * @param token 用户认证 Token (从 Header X-Token 获取)
      * @return 运动信息建议
      */
     @GetMapping("/sport")
-    public Unification<String> getSportSuggestion(@RequestHeader("X-Token") String token) {
+    public Unification<Map<String,Object>> getSportSuggestion(@RequestHeader("X-Token") String token) {
         User user = validateTokenAndGetUser(token);
         if (user == null) {
             return Unification.fail("认证失败，请检查Token或重新登录。");
         }
         AiSuggestionsSpecific s = aiSuggestionsSpecificService.getLatestSuggestionByUserId(user.getId());
-        String data = (s != null ? s.getSuggestionSportInfo() : null);
-        if (data == null) {
+        if (s == null) {
             return Unification.fail("未找到运动信息建议");
         }
-        return Unification.success(data);
+        Map<String,Object> res = new HashMap<>();
+        res.put("suggestion", s.getSuggestionSportInfo());
+        res.put("generatedAt", s.getGeneratedAt());
+        return Unification.success(res);
+    }
+
+    /**
+     * AI 流式获取运动信息建议
+     * @param token 用户认证 Token
+     * @param conversationId 会话 ID
+     * @return SSE 实时流
+     */
+    @GetMapping("/sportStream")
+    public SseEmitter getSportSuggestionStream(
+            @RequestHeader("X-Token") String token,
+            @RequestParam(required = false) String conversationId) {
+        SseEmitter emitter = new SseEmitter(3600000L);
+        User user = validateTokenAndGetUser(token);
+        if (user == null) {
+            try {
+                emitter.send(SseEmitter.event().name("error").data("认证失败，请检查Token或重新登录。"));
+            } catch (IOException e) {
+                log.error("sportStream发送错误事件失败", e);
+            }
+            emitter.complete();
+            return emitter;
+        }
+        return aiSuggestionsSpecificService.analyzeSportSuggestion(token, conversationId);
     }
 }

@@ -1,6 +1,5 @@
 package com.rabbiter.healthsys.controller;
 
-
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.rabbiter.healthsys.common.Unification;
@@ -9,6 +8,7 @@ import com.rabbiter.healthsys.entity.Body;
 import com.rabbiter.healthsys.entity.BodyNotes;
 import com.rabbiter.healthsys.entity.SportInfo;
 import com.rabbiter.healthsys.entity.User;
+import com.rabbiter.healthsys.service.IAiSuggestionsSpecificService;
 import com.rabbiter.healthsys.service.IBodyNotesService;
 import com.rabbiter.healthsys.service.IBodyService;
 import com.rabbiter.healthsys.service.IUserService;
@@ -34,13 +34,15 @@ import java.util.Map;
 @Slf4j
 public class UserController {
     /** JWT 配置类，用于解析和校验用户 token */
-private final JwtConfig jwtConfig;
-/** 用户服务，处理用户相关的业务逻辑 */
-private final IUserService userService;
-/** 体征服务，处理体征信息相关的业务逻辑 */
-private final IBodyService bodyService;
-/** 体征记录服务，处理体征日志相关的业务逻辑 */
-private final IBodyNotesService bodyNotesService;
+    private final JwtConfig jwtConfig;
+    /** 用户服务，处理用户相关的业务逻辑 */
+    private final IUserService userService;
+    /** 体征服务，处理体征信息相关的业务逻辑 */
+    private final IBodyService bodyService;
+    /** 体征记录服务，处理体征日志相关的业务逻辑 */
+    private final IBodyNotesService bodyNotesService;
+    /** AI 建议服务，同步生成并存库 */
+    private final IAiSuggestionsSpecificService aiSuggestionsSpecificService;
 
     /**
      * 获取所有用户
@@ -200,12 +202,24 @@ private final IBodyNotesService bodyNotesService;
 
 
     @PostMapping("/BodyInformation")
-    public Unification<?> BodyInfomationUp(@RequestBody Body body) {
+    public Unification<?> BodyInfomationUp(
+            @RequestHeader("X-Token") String token,
+            @RequestBody Body body) {
         boolean result = bodyService.insert(body);
+        // 异步生成 AI 报告
+        new Thread(() -> {
+            try {
+                aiSuggestionsSpecificService.generateHistoricalReport(token);
+                aiSuggestionsSpecificService.generateCurrentReport(token);
+                aiSuggestionsSpecificService.generateSportReport(token);
+            } catch (Exception e) {
+                log.error("异步生成AI报告失败", e);
+            }
+        }).start();
         if (result) {
-            return Unification.success("上传成功");
+            return Unification.success("数据上传成功，AI报告正在生成中");
         } else {
-            return Unification.success("更新成功");
+            return Unification.success("数据更新成功，AI报告正在生成中");
         }
     }
 

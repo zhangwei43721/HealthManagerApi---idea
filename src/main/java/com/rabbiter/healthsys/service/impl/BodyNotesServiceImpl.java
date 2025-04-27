@@ -9,7 +9,6 @@ import com.rabbiter.healthsys.service.IBodyNotesService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.util.ObjectUtils;
 
 import java.util.Date;
 import java.util.List;
@@ -21,7 +20,7 @@ public class BodyNotesServiceImpl extends ServiceImpl<BodyNotesMapper, BodyNotes
 
     @Override
     public boolean insert(BodyNotes bodyNotes) {
-        bodyNotes.setDate(ObjectUtils.isEmpty(bodyNotes.getDate()) ? new Date() : bodyNotes.getDate());
+        bodyNotes.setDate(bodyNotes.getDate() == null ? new Date() : bodyNotes.getDate());
         this.baseMapper.insert(bodyNotes);
         return true;
     }
@@ -40,7 +39,6 @@ public class BodyNotesServiceImpl extends ServiceImpl<BodyNotesMapper, BodyNotes
         baseMapper.delete(wrapper);
     }
 
-
     @Override
     public BodyNotes getUserBodyById(Integer notesid) {
         return this.baseMapper.selectById(notesid);
@@ -57,6 +55,12 @@ public class BodyNotesServiceImpl extends ServiceImpl<BodyNotesMapper, BodyNotes
         this.baseMapper.deleteById(notesid);
     }
 
-
+    @Override
+    public List<BodyNotes> getLatestBodyNotesByUserId(Integer userId) {
+        LambdaQueryWrapper<BodyNotes> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(BodyNotes::getId, userId)
+               .orderByDesc(BodyNotes::getDate)
+               .last("LIMIT 5");
+        return this.baseMapper.selectList(wrapper);
+    }
 }
-
