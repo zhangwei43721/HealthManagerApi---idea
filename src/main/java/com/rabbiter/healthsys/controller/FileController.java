@@ -1,7 +1,10 @@
 package com.rabbiter.healthsys.controller;
 
 import com.rabbiter.healthsys.common.Unification;
+import com.rabbiter.healthsys.config.JwtConfig; // 新增 import
+import com.rabbiter.healthsys.entity.User;     // 新增 import
 import com.rabbiter.healthsys.service.IUserService;
+import lombok.RequiredArgsConstructor; // 新增 import
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.util.ResourceUtils;
@@ -15,31 +18,57 @@ import java.util.Map;
 
 /**
  * 文件上传控制器
- * 处理文件上传相关操作
- * @author shuhaoran
- * @since 2025/4/26 16:04
+ * 处理文件上传相关操作 (用户头像上传需要 Token 认证)
+ * @author shuhaoran (修改者: AI based on request)
+ * @since 2025/4/26 16:04 (修改时间: 2023-10-27)
  */
 @RestController
 @RequestMapping("/file")
 @Slf4j
+@RequiredArgsConstructor // 使用 Lombok 自动生成构造函数注入 final 字段
 public class FileController {
     // 允许上传的图片扩展名
-    // 注意：此处的校验逻辑是：如果文件有扩展名，则必须是这些扩展名之一；没有扩展名则允许上传。
     private static final String ALLOWED_EXTENSIONS = ".jpg,.jpeg,.png,.gif";
     // 最大文件大小 5MB
     private static final long MAX_FILE_SIZE = 5 * 1024 * 1024;
     // 相对于 classpath 的头像保存目录
     private static final String AVATAR_SAVE_DIRECTORY_RELATIVE_TO_CLASSPATH = "images/avatar/";
     // 用户通过 web 访问的头像路径前缀
-    // 注意：这需要 web 服务器配置将 classpath 下的 images/avatar 目录映射到 /images/avatar 这个 web 路径
     private static final String AVATAR_WEB_ACCESS_PATH_PREFIX = "/images/avatar/";
+
     @Value("${server.port}")
     private String serverPort;
+
+    // --- 依赖注入 ---
     private final IUserService userService;
-    // 构造注入
-    public FileController(IUserService userService) {
-        this.userService = userService;
+    private final JwtConfig jwtConfig; // 新增：注入 JwtConfig 用于 Token 解析
+
+    // --- Token 验证辅助方法 (仿照 AiSuggestionsSpecificController) ---
+    /**
+     * 私有辅助方法：验证 Token 并获取用户信息
+     * @param token 从请求头 X-Token 获取的令牌
+     * @return 验证通过则返回 User 对象，否则返回 null
+     */
+    private User validateTokenAndGetUser(String token) {
+        if (token == null || token.isEmpty()) {
+            log.warn("请求头 X-Token 为空或缺失。");
+            return null;
+        }
+        try {
+            User user = jwtConfig.parseToken(token, User.class);
+            if (user == null || user.getId() == null) {
+                log.error("Token解析成功，但未能获取有效的用户ID。Token: {}", token);
+                return null;
+            }
+            log.info("Token 验证成功，用户ID: {}", user.getId());
+            return user;
+        } catch (Exception e) {
+            log.error("Token 解析失败。Token: {}", token, e);
+            return null;
+        }
     }
+
+    // --- 文件处理辅助方法 (保持不变) ---
 
     /**
      * 获取文件扩展名（包含点），如果文件名无效或没有有效扩展名，则返回空字符串
@@ -79,13 +108,12 @@ public class FileController {
         }
         // 判断文件大小不能大于最大值
         if (file.getSize() > MAX_FILE_SIZE) {
-            return Unification.fail(400, "文件不能大于50MB");
+            // 注意：错误信息应与 MAX_FILE_SIZE 保持一致
+            return Unification.fail(400, "文件不能大于 " + (MAX_FILE_SIZE / 1024 / 1024) + "MB");
         }
         // 获取文件扩展名 (使用独立的方法)
         String fileExtension = getFileExtension(file);
         // 检查文件扩展名是否合法：如果获取到的扩展名非空，则必须在允许的列表中
-        // 这意味着文件名没有扩展名是被允许的 (fileExtension 是 "")
-        // 只有当有扩展名但不在允许列表时才失败
         if (!ALLOWED_EXTENSIONS.contains(fileExtension)) {
             log.warn("文件扩展名不合法: {}", fileExtension);
             return Unification.fail(400, "只允许上传jpg、jpeg、png、gif格式的图片");
@@ -110,7 +138,6 @@ public class FileController {
         File directory = new File(fullSavePath);
         // 创建保存目录（如果不存在）
         if (!directory.exists()) {
-            // 如果目录创建失败，抛出异常
             if (!directory.mkdirs()) {
                 log.error("创建目录失败: {}", fullSavePath);
                 throw new IOException("服务器错误：无法创建文件存储目录");
@@ -127,8 +154,10 @@ public class FileController {
     }
 
 
+    // --- API 端点 ---
+
     /**
-     * 上传通用头像
+     * 上传通用头像 (无需认证)
      * 调用通用验证和保存逻辑
      * @param file 文件
      * @return 上传结果
@@ -142,10 +171,10 @@ public class FileController {
         }
         try {
             String fileExtension = getFileExtension(file);// 获取文件扩展名
-            String newFileName = System.currentTimeMillis() + fileExtension;// 生成新的文件名（使用时间戳确保唯一性）
+            String newFileName = System.currentTimeMillis() + fileExtension;// 生成新的文件名
             // 调用通用文件保存方法
-            String savedFileName = saveFile(file, newFileName); // savedFileName 应该与 newFileName 相同
-            // 构建文件访问路径（使用 web 访问前缀和保存后的文件名）
+            String savedFileName = saveFile(file, newFileName);
+            // 构建文件访问路径
             String fileUrl = "http://localhost:" + serverPort + AVATAR_WEB_ACCESS_PATH_PREFIX + savedFileName;
             // 构建返回数据
             Map<String, Object> data = new HashMap<>();
@@ -159,46 +188,57 @@ public class FileController {
     }
 
     /**
-     * 用户专用的头像上传方法
+     * 用户专用的头像上传方法 (需要 Token 认证)
      * 调用通用验证和保存逻辑，并更新用户信息
      * @param file 头像文件
-     * @param userId 用户ID
+     * @param token 用户认证 Token (从 Header X-Token 获取)
      * @return 上传结果
      */
     @PostMapping("/user/avatar/upload")
     public Unification<Map<String, Object>> uploadUserAvatar(
             @RequestParam("file") MultipartFile file,
-            @RequestParam("userId") Integer userId) {
+            @RequestHeader("X-Token") String token) { // 修改：接收 Token
 
-        // 检查用户ID是否有效
-        if (userId == null || userId <= 0) {
-            return Unification.fail(400, "无效的用户ID");
+        // 1. 验证 Token 并获取用户 ID
+        User user = validateTokenAndGetUser(token);
+        if (user == null) {
+            // Token 无效或解析失败，返回 401 未授权
+            return Unification.fail(401, "认证失败，请检查Token或重新登录。");
         }
-        // 调用通用文件验证方法
+        Integer userId = user.getId(); // 从 Token 中获取用户 ID
+
+        // 2. 调用通用文件验证方法
         Unification<Map<String, Object>> validationResult = validateFile(file);
         if (validationResult != null) {
             return validationResult; // 如果验证失败，直接返回失败结果
         }
+
         try {
-            String fileExtension = getFileExtension(file);// 获取文件扩展名
-            String newFileName = "user_" + userId + "_" + System.currentTimeMillis() + fileExtension;// 生成新的文件名（使用用户ID和时间戳确保唯一性）
-            String savedFileName = saveFile(file, newFileName);// 调用通用文件保存方法
-            // 构建文件访问URL（使用 web 访问前缀和保存后的文件名）
+            // 3. 生成新的文件名（使用从 Token 获取的 userId 和时间戳）
+            String fileExtension = getFileExtension(file);
+            String newFileName = "user_" + userId + "_" + System.currentTimeMillis() + fileExtension;
+
+            // 4. 调用通用文件保存方法
+            String savedFileName = saveFile(file, newFileName);
+
+            // 5. 构建文件访问URL
             String fileUrl = "http://localhost:" + serverPort + AVATAR_WEB_ACCESS_PATH_PREFIX + savedFileName;
-            // 更新用户头像信息到数据库
+
+            // 6. 更新用户头像信息到数据库 (使用从 Token 获取的 userId)
             boolean updateResult = userService.updateUserAvatar(userId, fileUrl);
             if (!updateResult) {
                 log.error("更新用户头像信息失败, userId: {}", userId);
-                // 注意：原代码在此处失败时不删除已保存的文件，简化后保持此行为
+                // 注意：原代码在此处失败时不删除已保存的文件，保持此行为
                 return Unification.fail(500, "更新用户头像信息失败");
             }
-            // 构建返回数据
+
+            // 7. 构建返回数据
             Map<String, Object> data = new HashMap<>();
             data.put("url", fileUrl);
             data.put("filename", savedFileName);
             return Unification.success(data, "用户头像上传成功");
         } catch (IOException e) {
-            log.error("用户头像保存失败", e);
+            log.error("用户头像保存失败, userId: {}", userId, e); // 在日志中记录 userId
             return Unification.fail(500, "用户头像保存失败：" + e.getMessage());
         }
     }

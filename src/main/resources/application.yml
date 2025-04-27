@@ -27,7 +27,12 @@ spring:
       connection-timeout: 30000
       validation-timeout: 5000
       pool-name: MyHikariPool
-
+  servlet:
+    multipart:
+      # 设置单个文件的最大大小 (例如设置为 10MB)
+      max-file-size: 10MB
+      # 设置整个 multipart 请求的最大大小 (例如 15MB)
+      max-request-size: 15MB
   # JPA 配置
   jpa:
     hibernate:
