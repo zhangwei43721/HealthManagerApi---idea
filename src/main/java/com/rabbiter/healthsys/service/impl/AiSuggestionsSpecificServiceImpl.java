@@ -5,9 +5,10 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.rabbiter.healthsys.entity.AiSuggestionsSpecific;
 import com.rabbiter.healthsys.mapper.AiSuggestionsSpecificMapper;
 import com.rabbiter.healthsys.service.IAiSuggestionsSpecificService;
-import org.springframework.stereotype.Service; // 确保导入了 @Service 注解
-
-import java.util.List;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import com.rabbiter.healthsys.controller.OpenAiController;
 
 /**
  * <p>
@@ -22,6 +23,9 @@ public class AiSuggestionsSpecificServiceImpl extends ServiceImpl<AiSuggestionsS
 
     // ServiceImpl<M, T> 自动注入了 baseMapper (即 AiSuggestionsSpecificMapper)
 
+    @Autowired
+    private OpenAiController openAiController;
+
     @Override
     public AiSuggestionsSpecific getLatestSuggestionByUserId(Integer userId) {
         // 使用 LambdaQueryWrapper 构造查询条件
@@ -33,6 +37,13 @@ public class AiSuggestionsSpecificServiceImpl extends ServiceImpl<AiSuggestionsS
 
         return this.baseMapper.selectOne(queryWrapper); // 或者使用 this.getOne(queryWrapper);
         // 注意：如果有多条记录时间完全相同，数据库可能会随机返回一条，LIMIT 1 确保只返回一条。
+    }
+
+    /**
+     * 内部调用 OpenAiController 的中文聊天流接口
+     */
+    public SseEmitter chatStreamChinese(String token, String question, String conversationId) {
+        return openAiController.getChatMessageStreamChinese(token, question, conversationId);
     }
 
     // 你可以在这里实现其他在 IAiSuggestionsSpecificService 接口中声明的自定义方法
