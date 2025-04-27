@@ -52,3 +52,6 @@ mybatis-plus:
 ai:
   deepseek:
     api-key: "sk-cd203451f4f34e09986239cfdd280b2a"
+  model:
+    default: "deepseek-chat"    # /chatStream 接口使用的默认模型
+    chinese: "deepseek-reasoner"      # /chatStreamChinese 接口使用的模型
