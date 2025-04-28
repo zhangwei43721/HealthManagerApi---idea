@@ -107,7 +107,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
             // 获取用户角色列表
             List<String> roleList = this.baseMapper.getRoleNameByUserId(loginUser.getId());
             data.put("roles", roleList);
-
+            data.put("role", (roleList != null && !roleList.isEmpty()) ? roleList.get(0) : "user");
             // 获取用户菜单列表
             List<Menu> menuList = menuService.getMenuListByUserId(loginUser.getId());
             data.put("menuList", menuList);
