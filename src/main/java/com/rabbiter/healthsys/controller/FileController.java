@@ -4,6 +4,7 @@ import com.rabbiter.healthsys.common.Unification;
 import com.rabbiter.healthsys.config.JwtConfig; // 新增 import
 import com.rabbiter.healthsys.entity.User;     // 新增 import
 import com.rabbiter.healthsys.service.IUserService;
+import com.rabbiter.healthsys.service.FileService; // 新增：导入 FileService
 import lombok.RequiredArgsConstructor; // 新增 import
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -42,6 +43,7 @@ public class FileController {
     // --- 依赖注入 ---
     private final IUserService userService;
     private final JwtConfig jwtConfig; // 新增：注入 JwtConfig 用于 Token 解析
+    private final FileService fileService; // 新增：注入 FileService
 
     // --- Token 验证辅助方法 (仿照 AiSuggestionsSpecificController) ---
     /**
@@ -155,6 +157,17 @@ public class FileController {
 
 
     // --- API 端点 ---
+
+    /**
+     * 新增：上传文件到 Cloudflare R2 (通用，无需认证，具体认证逻辑可在 FileService 实现)
+     * @param file 文件
+     * @return 上传结果
+     */
+    @PostMapping("/upload")
+    public Unification<Map<String, Object>> uploadToR2(@RequestParam("file") MultipartFile file) {
+        // 直接调用 FileService 的 upload 方法
+        return fileService.upload(file);
+    }
 
     /**
      * 上传通用头像 (无需认证)
