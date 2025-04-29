@@ -61,6 +61,25 @@ public class OpenAiController {
 
     @Value("${ai.model.chinese}") // 注入中文接口使用的模型名称 (deepseek-r1)
     private String chineseChatModel;
+    
+    // 注入YOLOv10图片检测相关配置
+    @Value("${ai.image-detection.api-url}")
+    private String imageDetectionApiUrl;
+    
+    @Value("${ai.image-detection.base-url}")
+    private String imageDetectionBaseUrl;
+    
+    @Value("${ai.image-detection.success-prompt}")
+    private String imageDetectionSuccessPrompt;
+    
+    @Value("${ai.image-detection.error-prompt}")
+    private String imageDetectionErrorPrompt;
+    
+    @Value("${ai.image-detection.api-error-prompt}")
+    private String imageDetectionApiErrorPrompt;
+    
+    @Value("${ai.image-detection.exception-prompt}")
+    private String imageDetectionExceptionPrompt;
     // --- End of configuration injection ---
 
     /**
@@ -132,7 +151,8 @@ public class OpenAiController {
                 log.info("/chatStream: 用户 {} 在会话 {} 中上传了图片 {} ({} bytes)，将调用对象检测 API。",
                          finalUserId, finalConversationId, file.getOriginalFilename(), file.getSize());
                 try {
-                    String detectionApiUrl = "http://120.55.192.74:8000/detect"; // 对象检测 API 地址
+                    // 使用配置的API URL而不是硬编码
+                    String detectionApiUrl = imageDetectionApiUrl;
 
                     // 准备请求头
                     HttpHeaders headers = new HttpHeaders();
@@ -175,18 +195,17 @@ public class OpenAiController {
                                 detectionInfo = "图片中未检测到任何对象。";
                                 log.info("/chatStream: {}", detectionInfo);
                             }
-                            // 构建发送给 DeepSeek 的消息
-                            processedMessage = String.format("用户上传了一张图片。%s %s。这是用户随图片发送的消息：\"%s\"",
-                                                           detectionInfo,
-                                                           (detectionResultImageUrl != null ? "处理后的图片地址：" + "http://120.55.192.74:8000" + detectionResultImageUrl : ""), // 加上基础 URL
-                                                           message);
+                            // 使用配置的提示词模板而不是硬编码
+                            String resultImageInfo = detectionResultImageUrl != null ? 
+                                "处理后的图片地址：" + imageDetectionBaseUrl + detectionResultImageUrl : "";
+                            processedMessage = String.format(imageDetectionSuccessPrompt, detectionInfo, resultImageInfo, message);
 
                             // 可以考虑将检测结果图片 URL 通过 SSE 发送给前端
                             if (detectionResultImageUrl != null) {
                                 try {
-                                    // 注意：基础 URL 可能需要配置化
-                                    emitter.send(SseEmitter.event().name("detectionResultImage").data("http://120.55.192.74:8000" + detectionResultImageUrl));
-                                    log.info("/chatStream: 已将检测结果图片 URL 发送给客户端: {}", "http://120.55.192.74:8000" + detectionResultImageUrl);
+                                    // 使用配置的基础URL
+                                    emitter.send(SseEmitter.event().name("detectionResultImage").data(imageDetectionBaseUrl + detectionResultImageUrl));
+                                    log.info("/chatStream: 已将检测结果图片 URL 发送给客户端: {}", imageDetectionBaseUrl + detectionResultImageUrl);
                                 } catch (IOException e) {
                                     log.error("/chatStream: 发送检测结果图片 URL 至客户端失败", e);
                                 }
@@ -195,16 +214,19 @@ public class OpenAiController {
                         } else {
                             String errorMsg = (String) detectionResponse.getOrDefault("message", "检测失败，未提供具体原因。");
                             log.error("/chatStream: 对象检测 API 返回错误状态: {}", errorMsg);
-                            processedMessage = String.format("用户上传了一张图片，但在尝试识别图片内容时出错：%s。这是用户随图片发送的消息：\"%s\"", errorMsg, message);
+                            // 使用配置的错误提示词模板
+                            processedMessage = String.format(imageDetectionErrorPrompt, errorMsg, message);
                         }
                     } else {
                         log.error("/chatStream: 调用对象检测 API 失败，状态码: {}", responseEntity.getStatusCode());
-                        processedMessage = String.format("用户上传了一张图片，但调用对象检测服务失败 (状态码: %d)。这是用户随图片发送的消息：\"%s\"", responseEntity.getStatusCodeValue(), message);
+                        // 使用配置的API错误提示词模板
+                        processedMessage = String.format(imageDetectionApiErrorPrompt, responseEntity.getStatusCodeValue(), message);
                     }
 
                 } catch (Exception e) {
                     log.error("/chatStream: 调用对象检测 API 或处理其响应时发生异常", e);
-                    processedMessage = String.format("用户上传了一张图片，但在处理图片时发生内部错误：%s。这是用户随图片发送的消息：\"%s\"", e.getMessage(), message);
+                    // 使用配置的异常处理提示词模板
+                    processedMessage = String.format(imageDetectionExceptionPrompt, e.getMessage(), message);
                 }
             } else {
                 log.info("/chatStream: 用户 {} 在会话 {} 中未上传图片，直接处理消息。", finalUserId, finalConversationId);
