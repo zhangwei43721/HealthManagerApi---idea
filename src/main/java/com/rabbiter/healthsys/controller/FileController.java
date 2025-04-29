@@ -4,16 +4,12 @@ import com.rabbiter.healthsys.common.Unification;
 import com.rabbiter.healthsys.config.JwtConfig; // 新增 import
 import com.rabbiter.healthsys.entity.User;     // 新增 import
 import com.rabbiter.healthsys.service.IUserService;
+import com.rabbiter.healthsys.service.FileService; // 新增：导入 FileService
 import lombok.RequiredArgsConstructor; // 新增 import
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.util.ResourceUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -31,17 +27,12 @@ public class FileController {
     private static final String ALLOWED_EXTENSIONS = ".jpg,.jpeg,.png,.gif";
     // 最大文件大小 5MB
     private static final long MAX_FILE_SIZE = 5 * 1024 * 1024;
-    // 相对于 classpath 的头像保存目录
-    private static final String AVATAR_SAVE_DIRECTORY_RELATIVE_TO_CLASSPATH = "images/avatar/";
     // 用户通过 web 访问的头像路径前缀
-    private static final String AVATAR_WEB_ACCESS_PATH_PREFIX = "/images/avatar/";
-
-    @Value("${server.port}")
-    private String serverPort;
 
     // --- 依赖注入 ---
     private final IUserService userService;
     private final JwtConfig jwtConfig; // 新增：注入 JwtConfig 用于 Token 解析
+    private final FileService fileService; // 新增：注入 FileService
 
     // --- Token 验证辅助方法 (仿照 AiSuggestionsSpecificController) ---
     /**
@@ -122,73 +113,46 @@ public class FileController {
         return null;
     }
 
-    /**
-     * 保存文件到指定目录（通用逻辑）
-     *
-     * @param file        要保存的文件
-     * @param newFileName 保存后的文件名
-     * @return 保存成功后文件的访问文件名 (即 newFileName)
-     * @throws IOException 如果文件保存失败或目录创建失败
-     */
-    private String saveFile(MultipartFile file, String newFileName) throws IOException {
-        // 获取 resources 目录的绝对路径
-        String classPath = ResourceUtils.getURL("classpath:").getPath();
-        // 构建完整的保存目录路径
-        String fullSavePath = classPath + FileController.AVATAR_SAVE_DIRECTORY_RELATIVE_TO_CLASSPATH;
-        File directory = new File(fullSavePath);
-        // 创建保存目录（如果不存在）
-        if (!directory.exists()) {
-            if (!directory.mkdirs()) {
-                log.error("创建目录失败: {}", fullSavePath);
-                throw new IOException("服务器错误：无法创建文件存储目录");
-            }
-            log.info("成功创建目录: {}", fullSavePath);
-        }
-        // 构建目标文件路径
-        File targetFile = new File(directory, newFileName);
-        // 保存文件
-        file.transferTo(targetFile);
-        log.info("文件已保存至: {}", targetFile.getAbsolutePath());
-        // 返回保存后的文件名
-        return newFileName;
-    }
-
 
     // --- API 端点 ---
 
     /**
-     * 上传通用头像 (无需认证)
+     * 新增：上传文件到 Cloudflare R2 (通用，无需认证，具体认证逻辑可在 FileService 实现)
+     * @param file 文件
+     * @return 上传结果
+     */
+    @PostMapping("/upload")
+    public Unification<Map<String, Object>> uploadToR2(@RequestParam("file") MultipartFile file) {
+        // 新增：调用通用文件验证方法 (大小、扩展名)
+        Unification<Map<String, Object>> validationResult = validateFile(file);
+        if (validationResult != null) {
+            return validationResult; // 如果验证失败，直接返回失败结果
+        }
+
+        // 验证通过后，再调用 FileService 的 upload 方法
+        return fileService.upload(file);
+    }
+
+    /**
+     * 上传通用头像 (无需认证) -> 修改为上传到 R2
      * 调用通用验证和保存逻辑
      * @param file 文件
      * @return 上传结果
      */
     @PostMapping("/avatar/upload")
     public Unification<Map<String, Object>> uploadAvatar(@RequestParam("file") MultipartFile file) {
-        // 调用通用文件验证方法
+        // 1. 调用通用文件验证方法 (大小、扩展名)
         Unification<Map<String, Object>> validationResult = validateFile(file);
         if (validationResult != null) {
             return validationResult; // 如果验证失败，直接返回失败结果
         }
-        try {
-            String fileExtension = getFileExtension(file);// 获取文件扩展名
-            String newFileName = System.currentTimeMillis() + fileExtension;// 生成新的文件名
-            // 调用通用文件保存方法
-            String savedFileName = saveFile(file, newFileName);
-            // 构建文件访问路径
-            String fileUrl = "http://localhost:" + serverPort + AVATAR_WEB_ACCESS_PATH_PREFIX + savedFileName;
-            // 构建返回数据
-            Map<String, Object> data = new HashMap<>();
-            data.put("url", fileUrl);
-            data.put("filename", savedFileName);
-            return Unification.success(data, "上传成功");
-        } catch (IOException e) {
-            log.error("文件保存失败", e);
-            return Unification.fail(500, "文件保存失败：" + e.getMessage());
-        }
+
+        // 2. 直接调用 FileService 上传到 R2
+        return fileService.upload(file);
     }
 
     /**
-     * 用户专用的头像上传方法 (需要 Token 认证)
+     * 用户专用的头像上传方法 (需要 Token 认证) -> 修改为上传到 R2
      * 调用通用验证和保存逻辑，并更新用户信息
      * @param file 头像文件
      * @param token 用户认证 Token (从 Header X-Token 获取)
@@ -213,33 +177,34 @@ public class FileController {
             return validationResult; // 如果验证失败，直接返回失败结果
         }
 
-        try {
-            // 3. 生成新的文件名（使用从 Token 获取的 userId 和时间戳）
-            String fileExtension = getFileExtension(file);
-            String newFileName = "user_" + userId + "_" + System.currentTimeMillis() + fileExtension;
+        // 3. 调用 FileService 上传文件到 R2
+        Unification<Map<String, Object>> r2UploadResult = fileService.upload(file);
 
-            // 4. 调用通用文件保存方法
-            String savedFileName = saveFile(file, newFileName);
-
-            // 5. 构建文件访问URL
-            String fileUrl = "http://localhost:" + serverPort + AVATAR_WEB_ACCESS_PATH_PREFIX + savedFileName;
-
-            // 6. 更新用户头像信息到数据库 (使用从 Token 获取的 userId)
-            boolean updateResult = userService.updateUserAvatar(userId, fileUrl);
-            if (!updateResult) {
-                log.error("更新用户头像信息失败, userId: {}", userId);
-                // 注意：原代码在此处失败时不删除已保存的文件，保持此行为
-                return Unification.fail(500, "更新用户头像信息失败");
-            }
-
-            // 7. 构建返回数据
-            Map<String, Object> data = new HashMap<>();
-            data.put("url", fileUrl);
-            data.put("filename", savedFileName);
-            return Unification.success(data, "用户头像上传成功");
-        } catch (IOException e) {
-            log.error("用户头像保存失败, userId: {}", userId, e); // 在日志中记录 userId
-            return Unification.fail(500, "用户头像保存失败：" + e.getMessage());
+        // 4. 检查 R2 上传是否成功
+        if (r2UploadResult.getCode() != 20000) {
+            // R2 上传失败，直接返回 R2 的失败结果
+            log.error("用户头像上传到 R2 失败, userId: {}. R2响应: {}", userId, r2UploadResult.getMessage());
+            return r2UploadResult;
         }
+
+        // 5. R2 上传成功，获取 R2 返回的 URL
+        String r2FileUrl = (String) r2UploadResult.getData().get("url");
+        if (r2FileUrl == null || r2FileUrl.isEmpty()) {
+            log.error("R2 上传成功但未能获取文件 URL, userId: {}, R2响应数据: {}", userId, r2UploadResult.getData());
+            return Unification.fail(500, "文件上传成功，但处理URL时出错");
+        }
+        log.info("用户头像成功上传到 R2, userId: {}, url: {}", userId, r2FileUrl);
+
+        // 6. 更新用户头像信息到数据库 (使用 R2 的 URL)
+        boolean updateResult = userService.updateUserAvatar(userId, r2FileUrl);
+        if (!updateResult) {
+            log.error("更新用户头像信息失败 (R2 URL), userId: {}", userId);
+            // 注意：这里可以考虑是否需要删除 R2 上的文件，目前不处理
+            return Unification.fail(500, "更新用户头像信息失败");
+        }
+        log.info("成功更新用户头像数据库记录, userId: {}", userId);
+
+        // 7. 返回 R2 上传成功的原始结果 (包含 R2 URL)
+        return r2UploadResult;
     }
 }
