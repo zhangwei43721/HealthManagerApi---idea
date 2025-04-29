@@ -30,8 +30,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Executors;
-import java.util.function.Consumer; // <--- 新增导入
-import org.springframework.lang.Nullable; // <--- 新增导入 (或者 javax.annotation.Nullable)
+import java.util.function.Consumer;
+import org.springframework.lang.Nullable;
 
 // --- 新增导入 ---
 import org.springframework.http.*;
@@ -39,8 +39,8 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
-import com.fasterxml.jackson.databind.ObjectMapper; // 用于解析 JSON
-import com.fasterxml.jackson.core.type.TypeReference; // 用于解析 JSON 列表
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.type.TypeReference;
 import java.util.Map;
 // --- 结束新增导入 ---
 
@@ -80,7 +80,6 @@ public class OpenAiController {
     
     @Value("${ai.image-detection.exception-prompt}")
     private String imageDetectionExceptionPrompt;
-    // --- End of configuration injection ---
 
     /**
      * AI 聊天流接口
@@ -143,8 +142,8 @@ public class OpenAiController {
         // --- 新增：异步处理图片和构建消息 ---
         Executors.newSingleThreadExecutor().submit(() -> {
             String processedMessage = message; // 默认使用原始消息
-            String detectionResultImageUrl = null; // 检测结果图片 URL
-            String detectionInfo = ""; // 检测结果文字描述
+            String detectionResultImageUrl; // 检测结果图片 URL
+            String detectionInfo; // 检测结果文字描述
 
             // --- 3. (如果提供了文件) 调用对象检测 API ---
             if (file != null && !file.isEmpty()) {
@@ -329,9 +328,7 @@ public class OpenAiController {
             };
 
             // --- 8. Emitter 事件回调 (移除对 cancelEventSource 的直接调用，依赖 SseListener 和 Emitter 自身的处理) ---
-            emitter.onCompletion(() -> {
-                log.info("/chatStreamLifecycle: SseEmitter 完成。用户 ID: {}, 会话 ID: {}", finalUserId, finalConversationId);
-            });
+            emitter.onCompletion(() -> log.info("/chatStreamLifecycle: SseEmitter 完成。用户 ID: {}, 会话 ID: {}", finalUserId, finalConversationId));
             emitter.onTimeout(() -> {
                 log.warn("/chatStreamLifecycle: SseEmitter 超时。用户 ID: {}, 会话 ID: {}", finalUserId, finalConversationId);
                 EventSource es = sseListener.getEventSource(); // 尝试获取 EventSource
@@ -488,16 +485,12 @@ public class OpenAiController {
                 }
             }; // SseListener 定义结束
             // --- Emitter 生命周期回调 (日志记录和资源清理) ---
-            emitter.onCompletion(() -> {
-                log.info("/chatStreamChinese: SseEmitter 完成。用户 ID: {}, 会话 ID: {}", userId, conversationId);
-            });
+            emitter.onCompletion(() -> log.info("/chatStreamChinese: SseEmitter 完成。用户 ID: {}, 会话 ID: {}", userId, conversationId));
             emitter.onTimeout(() -> {
                 log.warn("/chatStreamChinese: SseEmitter 超时。用户 ID: {}, 会话 ID: {}", userId, conversationId);
                 emitter.completeWithError(new RuntimeException("请求处理超时"));
             });
-            emitter.onError(e -> {
-                log.error("/chatStreamChinese: SseEmitter 发生错误。用户 ID: {}, 会话 ID: {}. 错误: {}", userId, conversationId, e.getMessage(), e);
-            });
+            emitter.onError(e -> log.error("/chatStreamChinese: SseEmitter 发生错误。用户 ID: {}, 会话 ID: {}. 错误: {}", userId, conversationId, e.getMessage(), e));
             // --- 6. 发起 AI 流式请求 ---
             try {
                 log.info("/chatStreamChinese: 调用 chatCompletionStream 开始。用户 ID: {}, 会话 ID: {}", userId, finalConversationId);
@@ -547,20 +540,6 @@ public class OpenAiController {
             log.warn("/chatStreamChinese: 发送最终错误事件失败: {}", e.getMessage());
         }
         emitter.completeWithError(cause != null ? cause : new RuntimeException(message));
-    }
-
-    /**
-     * 安全地取消 OkHttp EventSource。
-     */
-    private void cancelEventSource(@Nullable EventSource eventSource) {
-        if (eventSource != null) {
-            try {
-                eventSource.cancel();
-                log.debug("/chatStreamChinese: EventSource 已取消。");
-            } catch (Exception e) {
-                log.warn("/chatStreamChinese: 取消 EventSource 时出错: {}", e.getMessage());
-            }
-        }
     }
 
     /**
