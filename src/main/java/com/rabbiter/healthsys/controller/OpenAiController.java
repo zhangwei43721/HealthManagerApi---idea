@@ -33,6 +33,17 @@ import java.util.concurrent.Executors;
 import java.util.function.Consumer; // <--- 新增导入
 import org.springframework.lang.Nullable; // <--- 新增导入 (或者 javax.annotation.Nullable)
 
+// --- 新增导入 ---
+import org.springframework.http.*;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.web.multipart.MultipartFile;
+import com.fasterxml.jackson.databind.ObjectMapper; // 用于解析 JSON
+import com.fasterxml.jackson.core.type.TypeReference; // 用于解析 JSON 列表
+import java.util.Map;
+// --- 结束新增导入 ---
+
 @RestController
 @RequiredArgsConstructor // 自动生成包含 final 字段的构造函数
 @Slf4j // Lombok 注解，用于自动生成日志记录器
@@ -41,6 +52,8 @@ public class OpenAiController {
     private final AiService aiService; // 注入 AI 服务工厂
     private final IChatHistoryService chatHistoryService; // 注入聊天历史记录服务
     private final JwtConfig jwtConfig; // 注入 JWT 配置，用于 Token 解析
+    private final RestTemplate restTemplate; // 注入 RestTemplate 用于 HTTP 请求
+    private final ObjectMapper objectMapper; // 注入 ObjectMapper 用于 JSON 处理
 
     // --- 从配置文件注入模型名称 ---
     @Value("${ai.model.default}") // 注入默认接口使用的模型名称
@@ -51,19 +64,21 @@ public class OpenAiController {
     // --- End of configuration injection ---
 
     /**
-     * AI 聊天流接口 (中文注释)。
+     * AI 聊天流接口
      * 通过 URL Query 参数中的 token 识别用户，处理对话流和历史记录。
      * 使用配置文件中指定的默认模型 (ai.model.default)。
      * @param token 用户认证 token (在 URL Query 参数 "token" 中)
-     * @param question 用户输入的问题 (在 URL Query 参数 "question" 中)
-     * @param conversationId 当前对话 ID (可选, 在 URL Query 参数 "conversationId" 中)。如果为 null/空/"new"，则开始新对话。
+     * @param message 用户输入的消息 (在 form-data 的 'message' 字段中)
+     * @param file 可选的图片文件 (在 form-data 的 'file' 字段中)
+     * @param conversationId 当前对话 ID (可选, 在 form-data 的 'conversationId' 字段中)。如果为 null/空/\"new\"，则开始新对话。
      * @return SSE Emitter 实时向客户端发送 AI 回复。
      */
-    @GetMapping("/chatStream")
+    @PostMapping(value = "/chatStream", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public SseEmitter getChatMessageStream(
-            @RequestParam String token, // <<< 从 URL Query 参数获取 Token
-            @RequestParam String question,
-            @RequestParam(required = false) String conversationId
+            @RequestPart("token") String token, // 从 form-data 获取 Token
+            @RequestPart("message") String message, // 从 form-data 获取用户消息
+            @RequestPart(value = "file", required = false) MultipartFile file, // 从 form-data 获取可选的文件
+            @RequestPart(value = "conversationId", required = false) String conversationId
     ) {
         SseEmitter emitter = new SseEmitter(3600000L); // 设置 SSE 超时时间 (单位: 毫秒)
 
@@ -104,67 +119,179 @@ public class OpenAiController {
         }
 
         final String finalConversationId = currentConversationId;
-        IChatService chatService = aiService.getChatService(PlatformType.DEEPSEEK);
-        List<ChatMessage> historyMessages = chatHistoryService.getChatMessagesByUserIdAndConversationId(userId, finalConversationId);
-        log.info("/chatStream: 为用户 {} 的会话 {} 加载了 {} 条历史消息。", userId, finalConversationId, historyMessages.size());
-        ChatMessage userMessage = ChatMessage.withUser(question);
-        historyMessages.add(userMessage);
-        log.info("/chatStream: 本次发送给 AI 的消息总数 (包括历史): {}", historyMessages.size());
-        ChatHistory userChatHistory = ChatHistory.fromChatMessage(userId, finalConversationId, userMessage);
-        chatHistoryService.save(userChatHistory);
-        log.info("/chatStream: 用户消息已保存至数据库。用户 ID: {}, 会话 ID: {}", userId, finalConversationId);
+        final Integer finalUserId = userId; // Use final variable for lambda
 
-
-        // --- 6. 准备调用 AI 服务的请求参数 ---
-        ChatCompletion chatCompletion = ChatCompletion.builder()
-                .model(defaultChatModel)
-                .messages(historyMessages)
-                .build();
-        log.info("/chatStream: 使用模型: {}", defaultChatModel);
-
-        // --- 7. 异步处理 ---
+        // --- 新增：异步处理图片和构建消息 ---
         Executors.newSingleThreadExecutor().submit(() -> {
+            String processedMessage = message; // 默认使用原始消息
+            String detectionResultImageUrl = null; // 检测结果图片 URL
+            String detectionInfo = ""; // 检测结果文字描述
+
+            // --- 3. (如果提供了文件) 调用对象检测 API ---
+            if (file != null && !file.isEmpty()) {
+                log.info("/chatStream: 用户 {} 在会话 {} 中上传了图片 {} ({} bytes)，将调用对象检测 API。",
+                         finalUserId, finalConversationId, file.getOriginalFilename(), file.getSize());
+                try {
+                    String detectionApiUrl = "http://120.55.192.74:8000/detect"; // 对象检测 API 地址
+
+                    // 准备请求头
+                    HttpHeaders headers = new HttpHeaders();
+                    headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+
+                    // 准备请求体
+                    MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+                    body.add("file", file.getResource()); // 使用 getResource() 避免文件存储问题
+
+                    // 创建 HTTP 实体
+                    HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
+
+                    // 发送 POST 请求
+                    ResponseEntity<String> responseEntity = restTemplate.postForEntity(detectionApiUrl, requestEntity, String.class);
+
+                    if (responseEntity.getStatusCode() == HttpStatus.OK) {
+                        String responseBody = responseEntity.getBody();
+                        log.info("/chatStream: 对象检测 API 成功响应: {}", responseBody);
+
+                        // 解析 JSON 响应
+                        Map<String, Object> detectionResponse = objectMapper.readValue(responseBody, new TypeReference<Map<String, Object>>() {});
+
+                        if ("success".equals(detectionResponse.get("status"))) {
+                            List<Map<String, Object>> detections = (List<Map<String, Object>>) detectionResponse.get("detections");
+                            detectionResultImageUrl = (String) detectionResponse.get("result_image_url"); // 获取结果图片 URL
+
+                            if (detections != null && !detections.isEmpty()) {
+                                StringBuilder sb = new StringBuilder("图片中检测到以下对象：");
+                                for (Map<String, Object> det : detections) {
+                                    sb.append(String.format("%s (置信度: %.2f), ", det.get("class"), det.get("confidence")));
+                                }
+                                // 移除末尾的逗号和空格
+                                if (sb.length() > "图片中检测到以下对象：".length()) {
+                                    sb.setLength(sb.length() - 2);
+                                }
+                                sb.append("。");
+                                detectionInfo = sb.toString();
+                                log.info("/chatStream: 检测结果描述: {}", detectionInfo);
+                            } else {
+                                detectionInfo = "图片中未检测到任何对象。";
+                                log.info("/chatStream: {}", detectionInfo);
+                            }
+                            // 构建发送给 DeepSeek 的消息
+                            processedMessage = String.format("用户上传了一张图片。%s %s。这是用户随图片发送的消息：\"%s\"",
+                                                           detectionInfo,
+                                                           (detectionResultImageUrl != null ? "处理后的图片地址：" + "http://120.55.192.74:8000" + detectionResultImageUrl : ""), // 加上基础 URL
+                                                           message);
+
+                            // 可以考虑将检测结果图片 URL 通过 SSE 发送给前端
+                            if (detectionResultImageUrl != null) {
+                                try {
+                                    // 注意：基础 URL 可能需要配置化
+                                    emitter.send(SseEmitter.event().name("detectionResultImage").data("http://120.55.192.74:8000" + detectionResultImageUrl));
+                                    log.info("/chatStream: 已将检测结果图片 URL 发送给客户端: {}", "http://120.55.192.74:8000" + detectionResultImageUrl);
+                                } catch (IOException e) {
+                                    log.error("/chatStream: 发送检测结果图片 URL 至客户端失败", e);
+                                }
+                            }
+
+                        } else {
+                            String errorMsg = (String) detectionResponse.getOrDefault("message", "检测失败，未提供具体原因。");
+                            log.error("/chatStream: 对象检测 API 返回错误状态: {}", errorMsg);
+                            processedMessage = String.format("用户上传了一张图片，但在尝试识别图片内容时出错：%s。这是用户随图片发送的消息：\"%s\"", errorMsg, message);
+                        }
+                    } else {
+                        log.error("/chatStream: 调用对象检测 API 失败，状态码: {}", responseEntity.getStatusCode());
+                        processedMessage = String.format("用户上传了一张图片，但调用对象检测服务失败 (状态码: %d)。这是用户随图片发送的消息：\"%s\"", responseEntity.getStatusCodeValue(), message);
+                    }
+
+                } catch (Exception e) {
+                    log.error("/chatStream: 调用对象检测 API 或处理其响应时发生异常", e);
+                    processedMessage = String.format("用户上传了一张图片，但在处理图片时发生内部错误：%s。这是用户随图片发送的消息：\"%s\"", e.getMessage(), message);
+                }
+            } else {
+                log.info("/chatStream: 用户 {} 在会话 {} 中未上传图片，直接处理消息。", finalUserId, finalConversationId);
+            }
+            // --- 结束图片处理 ---
+
+            // --- 4. 获取聊天历史记录 ---
+            IChatService chatService = aiService.getChatService(PlatformType.DEEPSEEK); // 确认使用 DeepSeek
+            List<ChatMessage> historyMessages = chatHistoryService.getChatMessagesByUserIdAndConversationId(finalUserId, finalConversationId);
+            log.info("/chatStream: 为用户 {} 的会话 {} 加载了 {} 条历史消息。", finalUserId, finalConversationId, historyMessages.size());
+
+            // --- 5. 添加当前 (可能已处理过的) 消息到历史记录并保存 ---
+            ChatMessage userMessage = ChatMessage.withUser(processedMessage); // 使用处理后的消息
+            historyMessages.add(userMessage);
+            log.info("/chatStream: 本次发送给 AI 的消息总数 (包括历史): {}。处理后的用户消息: {}", historyMessages.size(), processedMessage);
+
+            // 保存原始用户消息和可能的检测信息到数据库
+            // 注意：这里保存的是组合后的消息，如果需要区分保存，需要调整 ChatHistory 实体和逻辑
+            ChatHistory userChatHistory = ChatHistory.fromChatMessage(finalUserId, finalConversationId, userMessage);
+            chatHistoryService.save(userChatHistory);
+            log.info("/chatStream: 用户消息 (可能包含图片信息) 已保存至数据库。用户 ID: {}, 会话 ID: {}", finalUserId, finalConversationId);
+
+
+            // --- 6. 准备调用 AI 服务的请求参数 ---
+            ChatCompletion chatCompletion = ChatCompletion.builder()
+                    .model(defaultChatModel) // 确认使用哪个模型
+                    .messages(historyMessages)
+                    .build();
+            log.info("/chatStream: 使用模型: {}", defaultChatModel);
+
+            // --- 7. 定义 SseListener (与之前类似，但 userId 和 conversationId 需要是 final 或 effectively final) ---
             SseListener sseListener = new SseListener() {
+                 private final StringBuilder assistantResponseBuilder = new StringBuilder(); // 用于累积 AI 回复
+
                 @Override
                 protected void send() {
                     try {
                         String currentData = this.getCurrData();
                         if (currentData != null && !currentData.isEmpty()) {
+                            assistantResponseBuilder.append(currentData); // 累积数据块
                             byte[] utf8Bytes = currentData.getBytes(StandardCharsets.UTF_8);
                             emitter.send(utf8Bytes);
                         }
                     } catch (IOException e) {
                         log.error("/chatStream: 通过 send() 方法向 emitter 发送 SSE 数据块时出错: {}", e.getMessage(), e);
                         emitter.completeWithError(e);
-                        EventSource es = getEventSource();
-                        if (es != null) { es.cancel(); }
                     } catch (Exception e) {
                         log.error("/chatStream: SseListener 的 send() 方法发生意外错误: {}", e.getMessage(), e);
                         emitter.completeWithError(e);
-                        EventSource es = getEventSource();
-                        if (es != null) { es.cancel(); }
                     }
                 }
                 @Override
                 public void onOpen(@NotNull EventSource eventSource, @NotNull Response response) {
-                    log.info("/chatStream: AI 流连接已打开。响应状态码: {}", response.code());
+                    log.info("/chatStream: AI 流连接已打开。用户 ID: {}, 会话 ID: {}, 响应状态码: {}", finalUserId, finalConversationId, response.code());
                 }
                 @Override
                 public void onClosed(@NotNull EventSource eventSource) {
-                    log.info("/chatStream: AI 流连接已关闭。");
-                    String assistantResponse = getOutput().toString();
-                    if (!assistantResponse.trim().isEmpty()) {
-                        ChatMessage assistantMessage = ChatMessage.withAssistant(assistantResponse);
-                        ChatHistory assistantChatHistory = ChatHistory.fromChatMessage(userId, finalConversationId, assistantMessage);
-                        chatHistoryService.save(assistantChatHistory);
-                        log.info("/chatStream: AI 回复已保存至数据库。用户 ID: {}, 会话 ID: {}", userId, finalConversationId);
-                        emitter.complete();
-                        log.info("/chatStream: 已在保存 AI 回复后将 SseEmitter 标记为完成。");
-                    } else {
-                        log.warn("/chatStream: AI 回复为空或仅包含空白字符，未保存至数据库。用户 ID: {}, 会话 ID: {}", userId, finalConversationId);
-                        emitter.complete();
-                        log.info("/chatStream: 已将 SseEmitter 标记为完成，即使 AI 回复为空。");
+                    log.info("/chatStream: AI 流连接已关闭。用户 ID: {}, 会话 ID: {}", finalUserId, finalConversationId);
+                    
+                    // 获取输出并确保使用UTF-8编码
+                    String rawOutput = this.getOutput().toString();
+                    
+                    // 重新以UTF-8编码处理响应文本
+                    String assistantResponse;
+                    try {
+                        // 转换为UTF-8字节然后再转回字符串，保持与send()方法相同的编码处理
+                        byte[] utf8Bytes = rawOutput.getBytes(StandardCharsets.UTF_8);
+                        assistantResponse = new String(utf8Bytes, StandardCharsets.UTF_8).trim();
+                        log.info("/chatStream: 处理后的AI回复使用UTF-8编码。用户 ID: {}, 会话 ID: {}", finalUserId, finalConversationId);
+                    } catch (Exception e) {
+                        log.error("/chatStream: 处理AI回复UTF-8编码时出错: {}", e.getMessage(), e);
+                        assistantResponse = rawOutput.trim(); // 回退到原始处理
                     }
+                    
+                    if (!assistantResponse.isEmpty()) {
+                        ChatMessage assistantMessage = ChatMessage.withAssistant(assistantResponse);
+                        ChatHistory assistantChatHistory = ChatHistory.fromChatMessage(finalUserId, finalConversationId, assistantMessage);
+                        chatHistoryService.save(assistantChatHistory);
+                        log.info("/chatStream: AI 回复已保存至数据库。用户 ID: {}, 会话 ID: {}, 回复长度: {}", 
+                                finalUserId, finalConversationId, assistantResponse.length());
+                    } else {
+                        log.warn("/chatStream: AI 回复为空或仅包含空白字符，未保存至数据库。用户 ID: {}, 会话 ID: {}", 
+                                finalUserId, finalConversationId);
+                    }
+                    emitter.complete();
+                    log.info("/chatStream: 已在 AI 流关闭后将 SseEmitter 标记为完成。用户 ID: {}, 会话 ID: {}", 
+                            finalUserId, finalConversationId);
                 }
                 @Override
                 public void onFailure(@NotNull EventSource eventSource, Throwable t, Response response) {
@@ -173,44 +300,48 @@ public class OpenAiController {
                         responseCode = response.code();
                         try { if (response.body() != null) { responseBody = response.body().string(); } } catch (IOException e) { log.error("/chatStream: 读取 AI 流失败时的响应体出错", e); }
                     }
-                    log.error("/chatStream: AI 流连接失败。状态码: {}, 响应体: {}, 异常: {}", responseCode, responseBody, (t != null ? t.getMessage() : "无异常信息"), t);
+                    log.error("/chatStream: AI 流连接失败。用户 ID: {}, 会话 ID: {}, 状态码: {}, 响应体: {}, 异常: {}",
+                              finalUserId, finalConversationId, responseCode, responseBody, (t != null ? t.getMessage() : "无异常信息"), t);
                     emitter.completeWithError(t != null ? t : new RuntimeException("AI 流处理失败，响应码: " + responseCode));
                 }
             };
 
-            // --- 8. Emitter 事件回调 ---
+            // --- 8. Emitter 事件回调 (移除对 cancelEventSource 的直接调用，依赖 SseListener 和 Emitter 自身的处理) ---
             emitter.onCompletion(() -> {
-                log.info("/chatStream: SseEmitter 已完成。");
-                EventSource es = sseListener.getEventSource();
-                if (es != null) { log.info("/chatStream: 从 SseEmitter 完成回调中取消 EventSource。"); es.cancel(); }
-                log.info("/chatStream: SseEmitter 完成回调处理器执行完毕。");
+                log.info("/chatStreamLifecycle: SseEmitter 完成。用户 ID: {}, 会话 ID: {}", finalUserId, finalConversationId);
             });
             emitter.onTimeout(() -> {
-                log.warn("/chatStream: SseEmitter 连接超时。");
-                EventSource es = sseListener.getEventSource();
-                if (es != null) { log.warn("/chatStream: 从 SseEmitter 超时回调中取消 EventSource。"); es.cancel(); }
-                emitter.completeWithError(new RuntimeException("SseEmitter 连接超时"));
-                log.warn("/chatStream: SseEmitter 超时回调处理器执行完毕。");
+                log.warn("/chatStreamLifecycle: SseEmitter 超时。用户 ID: {}, 会话 ID: {}", finalUserId, finalConversationId);
+                EventSource es = sseListener.getEventSource(); // 尝试获取 EventSource
+                 if (es != null) {
+                    log.warn("/chatStreamLifecycle: 因 SseEmitter 超时，尝试取消 EventSource。");
+                    es.cancel();
+                 }
+                emitter.completeWithError(new RuntimeException("请求处理超时"));
             });
             emitter.onError(e -> {
-                log.error("/chatStream: SseEmitter 发生错误: {}", e.getMessage(), e);
-                EventSource es = sseListener.getEventSource();
-                if (es != null) { log.error("/chatStream: 因 SseEmitter 错误，取消 EventSource。"); es.cancel(); }
-                log.error("/chatStream: SseEmitter 错误回调处理器执行完毕。");
+                log.error("/chatStreamLifecycle: SseEmitter 发生错误。用户 ID: {}, 会话 ID: {}. 错误: {}", finalUserId, finalConversationId, e.getMessage(), e);
+                EventSource es = sseListener.getEventSource(); // 尝试获取 EventSource
+                 if (es != null) {
+                     log.error("/chatStreamLifecycle: 因 SseEmitter 错误，尝试取消 EventSource。");
+                     es.cancel();
+                 }
             });
+
 
             // --- 9. 发起 AI 请求 ---
             try {
-                log.info("/chatStream: 用户 {} 的会话 {} 正在调用 chatCompletionStream (模型: {})...", userId, finalConversationId, defaultChatModel);
+                log.info("/chatStream: 用户 {} 的会话 {} 正在调用 chatCompletionStream (模型: {})...", finalUserId, finalConversationId, defaultChatModel);
                 chatService.chatCompletionStream(chatCompletion, sseListener);
-                log.info("/chatStream: chatCompletionStream 方法已为用户 {} 的会话 {} 返回。异步处理继续。", userId, finalConversationId);
+                log.info("/chatStream: chatCompletionStream 方法已为用户 {} 的会话 {} 返回。异步处理继续。", finalUserId, finalConversationId);
             } catch (Exception e) {
-                log.error("/chatStream: 为用户 {} 的会话 {} 调用 chatCompletionStream 时发生异常: {}", userId, finalConversationId, e.getMessage(), e);
+                log.error("/chatStream: 为用户 {} 的会话 {} 调用 chatCompletionStream 时发生异常: {}", finalUserId, finalConversationId, e.getMessage(), e);
                 emitter.completeWithError(e);
             }
         });
+        // --- 结束异步处理 ---
 
-        log.info("/chatStream: 为用户 {} 的会话 {} 返回 SseEmitter 对象。", userId, finalConversationId);
+        log.info("/chatStream: 为用户 {} 的会话 {} 返回 SseEmitter 对象。", userId, finalConversationId); // 使用原始 userId
         return emitter;
     }
 
@@ -288,7 +419,6 @@ public class OpenAiController {
                     } catch (Exception e) { // 捕获所有可能的异常，包括 IOException
                         log.error("/chatStreamChinese: SseListener.send() 异常: {}。用户 ID: {}, 会话 ID: {}", e.getMessage(), userId, finalConversationId, e);
                         emitter.completeWithError(e); // 标记 Emitter 错误
-                        cancelEventSource(this.getEventSource()); // 尝试取消底层连接
                     }
                 }
                 @Override
@@ -336,7 +466,16 @@ public class OpenAiController {
                 }
             }; // SseListener 定义结束
             // --- Emitter 生命周期回调 (日志记录和资源清理) ---
-            setupEmitterLifecycleCallbacks(emitter, sseListener, userId, finalConversationId);
+            emitter.onCompletion(() -> {
+                log.info("/chatStreamChinese: SseEmitter 完成。用户 ID: {}, 会话 ID: {}", userId, conversationId);
+            });
+            emitter.onTimeout(() -> {
+                log.warn("/chatStreamChinese: SseEmitter 超时。用户 ID: {}, 会话 ID: {}", userId, conversationId);
+                emitter.completeWithError(new RuntimeException("请求处理超时"));
+            });
+            emitter.onError(e -> {
+                log.error("/chatStreamChinese: SseEmitter 发生错误。用户 ID: {}, 会话 ID: {}. 错误: {}", userId, conversationId, e.getMessage(), e);
+            });
             // --- 6. 发起 AI 流式请求 ---
             try {
                 log.info("/chatStreamChinese: 调用 chatCompletionStream 开始。用户 ID: {}, 会话 ID: {}", userId, finalConversationId);
@@ -418,27 +557,6 @@ public class OpenAiController {
         }
         return details;
     }
-
-    /**
-     * 设置 SseEmitter 的生命周期回调，主要用于日志和资源清理。
-     */
-    private void setupEmitterLifecycleCallbacks(SseEmitter emitter, SseListener sseListener, Integer userId, String conversationId) {
-        emitter.onCompletion(() -> {
-            log.info("/chatStreamChinese: SseEmitter 完成。用户 ID: {}, 会话 ID: {}", userId, conversationId);
-            cancelEventSource(sseListener.getEventSource()); // 清理资源
-        });
-        emitter.onTimeout(() -> {
-            log.warn("/chatStreamChinese: SseEmitter 超时。用户 ID: {}, 会话 ID: {}", userId, conversationId);
-            cancelEventSource(sseListener.getEventSource()); // 清理资源
-            emitter.completeWithError(new RuntimeException("SSE 连接超时")); // 确保完成
-        });
-        emitter.onError(e -> {
-            log.error("/chatStreamChinese: SseEmitter 错误: {}。用户 ID: {}, 会话 ID: {}", e.getMessage(), userId, conversationId, e);
-            cancelEventSource(sseListener.getEventSource()); // 清理资源
-            // onError 通常不需要手动 completeWithError，因为它通常伴随着导致错误的完成
-        });
-    }
-
 
     /**
      * 获取用户所有对话历史记录。通过请求头 "X-Token" 中的 token 识别用户。

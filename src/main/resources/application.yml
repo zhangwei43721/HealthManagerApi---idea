@@ -119,8 +119,8 @@ ai:
 
 # Cloudflare R2 配置
 R2:
-  access-key-id: 9e4d12b364d10cf24ea11156e39205f5 # 替换为你的 Access Key ID
-  secret-access-key: 9a479f9c02af98d4b39a429503538c47418acf503169c711bdf725c35baf631d # 替换为你的 Secret Access Key
-  end-point: https://5470cf67e8ea8b00579ee1e80e86677e.r2.cloudflarestorage.com # 替换为你的 R2 端点 URL
-  bucket-name: healthmannager # 替换为你的 R2 存储桶名称
-  public-domain: https://healthimg.skyforever.top/ # 更新为用户指定的公共访问域名
+  access-key-id: 9e4d12b364d10cf24ea11156e39205f5
+  secret-access-key: 9a479f9c02af98d4b39a429503538c47418acf503169c711bdf725c35baf631d
+  end-point: https://5470cf67e8ea8b00579ee1e80e86677e.r2.cloudflarestorage.com
+  bucket-name: healthmannager
+  public-domain: https://healthimg.skyforever.top/
