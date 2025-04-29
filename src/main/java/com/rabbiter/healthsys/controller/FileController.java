@@ -123,7 +123,13 @@ public class FileController {
      */
     @PostMapping("/upload")
     public Unification<Map<String, Object>> uploadToR2(@RequestParam("file") MultipartFile file) {
-        // 直接调用 FileService 的 upload 方法
+        // 新增：调用通用文件验证方法 (大小、扩展名)
+        Unification<Map<String, Object>> validationResult = validateFile(file);
+        if (validationResult != null) {
+            return validationResult; // 如果验证失败，直接返回失败结果
+        }
+
+        // 验证通过后，再调用 FileService 的 upload 方法
         return fileService.upload(file);
     }
 
