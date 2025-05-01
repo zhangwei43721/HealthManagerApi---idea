@@ -33,7 +33,6 @@ import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 import org.springframework.lang.Nullable;
 
-// --- 新增导入 ---
 import org.springframework.http.*;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -42,8 +41,13 @@ import org.springframework.web.multipart.MultipartFile;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.core.type.TypeReference;
 import java.util.Map;
-// --- 结束新增导入 ---
 
+/**
+ * AI聊天接口
+ * 
+ * @author Skyforever
+ * @since 2025-05-01
+ */
 @RestController
 @RequiredArgsConstructor // 自动生成包含 final 字段的构造函数
 @Slf4j // Lombok 注解，用于自动生成日志记录器

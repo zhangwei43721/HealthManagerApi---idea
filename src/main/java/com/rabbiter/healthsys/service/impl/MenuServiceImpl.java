@@ -11,6 +11,12 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 
+/**
+ * 菜单服务实现类
+ * 
+ * @author Skyforever
+ * @since 2025-05-01
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j

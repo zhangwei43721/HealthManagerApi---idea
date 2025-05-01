@@ -13,6 +13,12 @@ import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * 运动知识列表前端接口
+ * 
+ * @author Skyforever
+ * @since 2025-05-01
+ */
 @RestController
 @RequestMapping("/sport")
 @RequiredArgsConstructor

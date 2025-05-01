@@ -1,11 +1,11 @@
 package com.rabbiter.healthsys.controller;
 
 import com.rabbiter.healthsys.common.Unification;
-import com.rabbiter.healthsys.config.JwtConfig; // 新增 import
-import com.rabbiter.healthsys.entity.User;     // 新增 import
+import com.rabbiter.healthsys.config.JwtConfig;
+import com.rabbiter.healthsys.entity.User;
 import com.rabbiter.healthsys.service.IUserService;
-import com.rabbiter.healthsys.service.FileService; // 新增：导入 FileService
-import lombok.RequiredArgsConstructor; // 新增 import
+import com.rabbiter.healthsys.service.FileService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -15,8 +15,8 @@ import java.util.Map;
 /**
  * 文件上传控制器
  * 处理文件上传相关操作 (用户头像上传需要 Token 认证)
- * @author shuhaoran (修改者: AI based on request)
- * @since 2025/4/26 16:04 (修改时间: 2023-10-27)
+ * @author shuhaoran，yaoyang
+ * @since 2025/4/26 16:04
  */
 @RestController
 @RequestMapping("/file")

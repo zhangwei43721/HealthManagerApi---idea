@@ -165,9 +165,7 @@ public class UserController {
 
     @GetMapping("/{id}")
     public Unification<User> getUserById(@PathVariable("id") Integer id) {
-        // 通过用户id调用userService的getUserById方法获取用户信息
         User user = userService.getUserById(id);
-        // 将获取到的用户信息封装成Unification类型并返回
         return Unification.success(user);
     }
 
@@ -286,9 +284,7 @@ public class UserController {
 
     @GetMapping("/getBodyById/{id}")
     public Unification<Body> getBodyById(@PathVariable("id") Integer id) {
-        // 通过用户id调用userService的getUserById方法获取用户信息
         Body body = bodyService.getBodyById(id);
-        // 将获取到的用户信息封装成Unification类型并返回
         return Unification.success(body);
     }
 

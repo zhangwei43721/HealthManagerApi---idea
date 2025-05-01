@@ -7,12 +7,10 @@ import com.rabbiter.healthsys.service.IUserRoleService;
 import org.springframework.stereotype.Service;
 
 /**
- * <p>
- * 服务实现类
- * </p>
- *
- * @author
- * @since 2024-07-23
+ * 用户角色服务实现类
+ * 
+ * @author Skyforever
+ * @since 2025-05-01
  */
 @Service
 public class UserRoleServiceImpl extends ServiceImpl<UserRoleMapper, UserRole> implements IUserRoleService {

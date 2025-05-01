@@ -17,7 +17,7 @@ import java.util.Map;
 
 /**
  * <p>
- * AI健康建议 前端控制器 (带Token认证)
+ * 查询AI健康建议 前端控制器
  * </p>
  *
  * @author Skyforever

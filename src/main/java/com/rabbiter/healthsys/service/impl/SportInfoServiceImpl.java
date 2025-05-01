@@ -11,6 +11,12 @@ import org.springframework.stereotype.Service;
 import javax.transaction.Transactional;
 import java.util.List;
 
+/**
+ * 运动知识服务实现类
+ * 
+ * @author Skyforever
+ * @since 2025-05-01
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -23,32 +29,6 @@ public class SportInfoServiceImpl extends ServiceImpl<SportInfoMapper, SportInfo
     public List<SportInfo> getAllSportInfos() {
         return sportInfoMapper.selectList(null);
     }
-
-
-//    @Override
-//    public List<SportInfo> getSportInfosBySuitableHeartRate(int heartRate) {
-//        QueryWrapper<SportInfo> wrapper = new QueryWrapper<>();
-//        wrapper.le("suitable_heart_rate", heartRate);
-//        return sportInfoMapper.selectList(wrapper);
-//    }
-//
-//
-//    @Override
-//    public List<SportInfo> getSportInfosBySuitableTimeAndFrequency(int time, int frequency) {
-//        QueryWrapper<SportInfo> wrapper = new QueryWrapper<>(); // 创建 QueryWrapper 对象
-//        wrapper.le("suitable_time", time) // 设置查询条件，适宜时间小于等于指定时间
-//                .ge("suitable_frequency", frequency); // 设置查询条件，适宜频率大于等于指定频率
-//        return sportInfoMapper.selectList(wrapper); // 执行查询并返回结果
-//    }
-//
-//
-//    @Override // 重写 SportInfoService 接口的方法，根据推荐速度范围获取运动信息
-//    public List<SportInfo> getSportInfosByRecommendedSpeedRange(int minSpeed, int maxSpeed) {
-//        QueryWrapper<SportInfo> wrapper = new QueryWrapper<>(); // 创建 QueryWrapper 对象
-//        wrapper.between("recommended_speed", minSpeed, maxSpeed); // 设置查询条件，推荐速度在指定范围内
-//        return sportInfoMapper.selectList(wrapper); // 执行查询并返回结果
-//    }
-
 
     @Transactional
     @Override

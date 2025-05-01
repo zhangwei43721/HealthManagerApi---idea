@@ -13,12 +13,10 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 /**
- * <p>
- * 前端控制器
- * </p>
- *
+ * 给前端做页面权限控制查询的控制器
+ * 
  * @author Skyforever
- * @since 2024-07-23
+ * @since 2025-05-01
  */
 @RestController
 @RequestMapping("/menu")

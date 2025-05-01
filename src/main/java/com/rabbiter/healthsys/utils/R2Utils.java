@@ -15,6 +15,12 @@ import software.amazon.awssdk.core.sync.RequestBody;
 import java.io.IOException;
 import java.net.URI;
 
+/**
+ * R2 文件上传工具类
+ * 
+ * @author yaoyang
+ * @since 2025-05-01
+ */
 @Slf4j
 @Component
 public class R2Utils {

@@ -25,6 +25,12 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+/**
+ * AI 健康建议服务实现类
+ * 
+ * @author Skyforever
+ * @since 2025-05-01
+ */
 @Service
 public class AiSuggestionsSpecificServiceImpl extends ServiceImpl<AiSuggestionsSpecificMapper, AiSuggestionsSpecific> implements IAiSuggestionsSpecificService {
 

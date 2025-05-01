@@ -14,6 +14,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * 运动详细信息前端接口
+ * 
+ * @author Skyforever
+ * @since 2025-05-01
+ */
 @RestController
 @RequestMapping("/detail")
 @RequiredArgsConstructor
@@ -29,7 +35,6 @@ public class DetailController {
         if (detailList == null || detailList.isEmpty()) {
             return Unification.fail("查询结果为空");
         }
-        // 如果只查询到一条结果，可以直接返回
         Detail detail = detailList.get(0);
         return Unification.success(detail);
     }
@@ -42,10 +47,8 @@ public class DetailController {
         LambdaQueryWrapper<Detail> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(StringUtils.hasLength(sportType), Detail::getSportType, sportType); // 如果sportType参数不为空，则添加运动类型查询条件
         Page<Detail> page = new Page<>(pageNo, pageSize); // 构建分页对象，指定页码和每页大小
-
         detailService.page(page, wrapper); //查询指定页码、每页大小和查询条件的用户列表
         Map<String, Object> data = new HashMap<>();
-
         data.put("total", page.getTotal()); // 用户总数
         data.put("rows", page.getRecords()); // 用户列表
         System.out.println(data);

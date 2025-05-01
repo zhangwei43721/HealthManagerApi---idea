@@ -40,18 +40,15 @@ public class RoleController {
         LambdaQueryWrapper<Role> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(StringUtils.hasLength(roleName), Role::getRoleName, roleName);
         wrapper.orderByDesc(Role::getRoleId);
-
         // 分页查询
         Page<Role> page = new Page<>(pageNo, pageSize);
         roleService.page(page, wrapper);
-
         // 将查询结果封装到Map中返回
         Map<String, Object> data = new HashMap<>();
         data.put("total", page.getTotal());
         data.put("rows", page.getRecords());
         return Unification.success(data);
     }
-
 
     @PostMapping
     public Unification<?> addRole(@RequestBody Role role) {
