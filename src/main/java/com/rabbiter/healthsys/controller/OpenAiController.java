@@ -97,7 +97,7 @@ public class OpenAiController {
      */
     @PostMapping(value = "/chatStream", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public SseEmitter getChatMessageStream(
-            @RequestPart("token") String token, // 从 form-data 获取 Token
+            @RequestHeader("X-Token") String token, // 修改：从 Header 获取 Token
             @RequestPart("message") String message, // 从 form-data 获取用户消息
             @RequestPart(value = "file", required = false) MultipartFile file, // 从 form-data 获取可选的文件
             @RequestPart(value = "conversationId", required = false) String conversationId
@@ -382,8 +382,9 @@ public class OpenAiController {
      * @param conversationId 当前对话 ID (可选, 在 URL Query 参数 "conversationId" 中)。如果为 null/空/"new"，则开始新对话。
      * @return SSE Emitter 实时向客户端发送 AI 回复。
      */
+    @PostMapping("/chatStream/chinese")
     public SseEmitter getChatMessageStreamChinese(
-            @RequestParam String token,
+            @RequestHeader("X-Token") String token, // 修改：从 Header 获取 Token
             @RequestParam String question,
             @RequestParam(required = false) String conversationId,
             @Nullable Consumer<String> onCompleteCallback) { // 回调参数保持不变

@@ -88,7 +88,7 @@ public class UserController {
 
 
     @GetMapping("/info")
-    public Unification<Map<String, Object>> getUserInfo(@RequestParam("token") String token) {
+    public Unification<Map<String, Object>> getUserInfo(@RequestHeader("X-Token") String token) {
         // 根据token获取用户信息
         Map<String, Object> data = userService.getUserInfo(token); // 调用userService的getUserInfo方法，传递token参数，返回一个Map<String,Object>类型的data
         if (data != null) {
@@ -180,8 +180,8 @@ public class UserController {
     }
 
 
-    @GetMapping("/WxgetBodyNotes/{token}")
-    public Unification<Map<String, Object>> WxgetBodyNotes(@PathVariable("token") String token) {
+    @GetMapping("/WxgetBodyNotes")
+    public Unification<Map<String, Object>> WxgetBodyNotes(@RequestHeader("X-Token") String token) {
         // 根据token获取用户信息
         Map<String, Object> data = userService.WxgetUserId(token);
         Integer userId = Integer.parseInt(data.get("id").toString());
