@@ -369,12 +369,9 @@ public class OpenAiController {
     }
 
 
-    // ========================================================================
-    // ========= 中文注释和中文回复聊天接口 (使用 deepseek-r1 模型) =========
-    // ========================================================================
-
     /**
-     * AI 聊天流接口 (中文注释和回复版本)。
+     * AI 聊天流接口
+     * 只用于AiSuggestionsSpecificController.java生成报告时使用
      * 通过 URL Query 参数中的 token 识别用户，处理对话流和历史记录。
      * 使用配置文件中指定的中文模型 (ai.model.chinese)。
      * @param token 用户认证 token (在 URL Query 参数 "token" 中)
@@ -382,7 +379,6 @@ public class OpenAiController {
      * @param conversationId 当前对话 ID (可选, 在 URL Query 参数 "conversationId" 中)。如果为 null/空/"new"，则开始新对话。
      * @return SSE Emitter 实时向客户端发送 AI 回复。
      */
-    @PostMapping("/chatStream/chinese")
     public SseEmitter getChatMessageStreamChinese(
             @RequestHeader("X-Token") String token, // 修改：从 Header 获取 Token
             @RequestParam String question,
