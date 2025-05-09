@@ -90,19 +90,38 @@ public class OpenAiController {
      * 通过 URL Query 参数中的 token 识别用户，处理对话流和历史记录。
      * 使用配置文件中指定的默认模型 (ai.model.default)。
      * @param token 用户认证 token (在 URL Query 参数 "token" 中)
-     * @param message 用户输入的消息 (在 form-data 的 'message' 字段中)
      * @param file 可选的图片文件 (在 form-data 的 'file' 字段中)
-     * @param conversationId 当前对话 ID (可选, 在 form-data 的 'conversationId' 字段中)。如果为 null/空/\"new\"，则开始新对话。
      * @return SSE Emitter 实时向客户端发送 AI 回复。
      */
     @PostMapping(value = "/chatStream", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public SseEmitter getChatMessageStream(
-            @RequestHeader("X-Token") String token, // 修改：从 Header 获取 Token
-            @RequestPart("message") String message, // 从 form-data 获取用户消息
-            @RequestPart(value = "file", required = false) MultipartFile file, // 从 form-data 获取可选的文件
-            @RequestPart(value = "conversationId", required = false) String conversationId
+            @RequestHeader("X-Token") String token,
+            @RequestPart("message") String messageParam, // 重命名原始参数
+            @RequestPart(value = "file", required = false) MultipartFile file,
+            @RequestPart(value = "conversationId", required = false) String conversationIdParam // 重命名原始参数
     ) {
         SseEmitter emitter = new SseEmitter(3600000L); // 设置 SSE 超时时间 (单位: 毫秒)
+
+        String message = messageParam; // 将参数赋值给可修改的局部变量
+        String conversationIdStr = conversationIdParam; // 将参数赋值给可修改的局部变量
+
+        // --- 新增：对输入参数进行手动的UTF-8重编码 ---
+        try {
+            if (message != null) {
+                message = new String(message.getBytes(StandardCharsets.ISO_8859_1), StandardCharsets.UTF_8);
+                log.debug("/chatStream: Re-encoded message from ISO-8859-1 to UTF-8. Original length: {}, New length: {}", messageParam != null ? messageParam.length() : "null", (message != null ? message.length() : "null"));
+            }
+            if (conversationIdStr != null && !conversationIdStr.trim().isEmpty() && !"new".equalsIgnoreCase(conversationIdStr.trim())) {
+                conversationIdStr = new String(conversationIdStr.getBytes(StandardCharsets.ISO_8859_1), StandardCharsets.UTF_8);
+                log.debug("/chatStream: Re-encoded conversationId from ISO-8859-1 to UTF-8. Original: [{}], New: [{}]", conversationIdParam, conversationIdStr);
+            }
+        } catch (Exception e) {
+            log.error("/chatStream: Error during manual UTF-8 re-encoding of request parts. Original message: '{}', Original conversationId: '{}'", messageParam, conversationIdParam, e);
+        }
+        // --- 结束手动重编码 ---
+
+        final String finalMessage = message; // <<< 新增 final 变量以供 lambda 使用
+        final String finalConversationIdForLambda = conversationIdStr; // <<< 重命名以明确用途
 
         // --- 1. 从 Token 中解析用户 ID ---
         Integer userId;
@@ -124,7 +143,7 @@ public class OpenAiController {
         }
 
         // --- 2. 处理会话 ID ---
-        String currentConversationId = conversationId;
+        String currentConversationId = finalConversationIdForLambda; // 使用 final 变量
         if (currentConversationId == null || currentConversationId.trim().isEmpty() || "new".equalsIgnoreCase(currentConversationId.trim())) {
             currentConversationId = UUID.randomUUID().toString();
             log.info("/chatStream: 为用户 {} 生成了新的会话 ID: {}", userId, currentConversationId);
@@ -145,7 +164,7 @@ public class OpenAiController {
 
         // --- 新增：异步处理图片和构建消息 ---
         Executors.newSingleThreadExecutor().submit(() -> {
-            String processedMessage = message; // 默认使用原始消息
+            String processedMessage = finalMessage; // <<< 使用 finalMessage
             String detectionResultImageUrl; // 检测结果图片 URL
             String detectionInfo; // 检测结果文字描述
 
@@ -201,7 +220,7 @@ public class OpenAiController {
                             // 使用配置的提示词模板而不是硬编码
                             String resultImageInfo = detectionResultImageUrl != null ? 
                                 "处理后的图片地址：" + imageDetectionBaseUrl + detectionResultImageUrl : "";
-                            processedMessage = String.format(imageDetectionSuccessPrompt, detectionInfo, resultImageInfo, message);
+                            processedMessage = String.format(imageDetectionSuccessPrompt, detectionInfo, resultImageInfo, finalMessage); // <<< 使用 finalMessage
 
                             // 可以考虑将检测结果图片 URL 通过 SSE 发送给前端
                             if (detectionResultImageUrl != null) {
@@ -218,18 +237,18 @@ public class OpenAiController {
                             String errorMsg = (String) detectionResponse.getOrDefault("message", "检测失败，未提供具体原因。");
                             log.error("/chatStream: 对象检测 API 返回错误状态: {}", errorMsg);
                             // 使用配置的错误提示词模板
-                            processedMessage = String.format(imageDetectionErrorPrompt, errorMsg, message);
+                            processedMessage = String.format(imageDetectionErrorPrompt, errorMsg, finalMessage); // <<< 使用 finalMessage
                         }
                     } else {
                         log.error("/chatStream: 调用对象检测 API 失败，状态码: {}", responseEntity.getStatusCode());
                         // 使用配置的API错误提示词模板
-                        processedMessage = String.format(imageDetectionApiErrorPrompt, responseEntity.getStatusCodeValue(), message);
+                        processedMessage = String.format(imageDetectionApiErrorPrompt, responseEntity.getStatusCodeValue(), finalMessage); // <<< 使用 finalMessage
                     }
 
                 } catch (Exception e) {
                     log.error("/chatStream: 调用对象检测 API 或处理其响应时发生异常", e);
                     // 使用配置的异常处理提示词模板
-                    processedMessage = String.format(imageDetectionExceptionPrompt, e.getMessage(), message);
+                    processedMessage = String.format(imageDetectionExceptionPrompt, e.getMessage(), finalMessage); // <<< 使用 finalMessage
                 }
             } else {
                 log.info("/chatStream: 用户 {} 在会话 {} 中未上传图片，直接处理消息。", finalUserId, finalConversationId);
@@ -364,7 +383,7 @@ public class OpenAiController {
         });
         // --- 结束异步处理 ---
 
-        log.info("/chatStream: 为用户 {} 的会话 {} 返回 SseEmitter 对象。", userId, finalConversationId); // 使用原始 userId
+        log.info("/chatStream: 为用户 {} 的会话 {} 返回 SseEmitter 对象。", userId, finalConversationIdForLambda); // <<< 使用 finalConversationIdForLambda
         return emitter;
     }
 
@@ -375,16 +394,33 @@ public class OpenAiController {
      * 通过 URL Query 参数中的 token 识别用户，处理对话流和历史记录。
      * 使用配置文件中指定的中文模型 (ai.model.chinese)。
      * @param token 用户认证 token (在 URL Query 参数 "token" 中)
-     * @param question 用户输入的问题 (在 URL Query 参数 "question" 中)
-     * @param conversationId 当前对话 ID (可选, 在 URL Query 参数 "conversationId" 中)。如果为 null/空/"new"，则开始新对话。
      * @return SSE Emitter 实时向客户端发送 AI 回复。
      */
     public SseEmitter getChatMessageStreamChinese(
-            @RequestHeader("X-Token") String token, // 修改：从 Header 获取 Token
-            @RequestParam String question,
-            @RequestParam(required = false) String conversationId,
-            @Nullable Consumer<String> onCompleteCallback) { // 回调参数保持不变
+            @RequestHeader("X-Token") String token,
+            @RequestParam String questionParam, // 重命名原始参数
+            @RequestParam(required = false) String conversationIdParam, // 重命名原始参数
+            @Nullable Consumer<String> onCompleteCallback) {
         SseEmitter emitter = new SseEmitter(3600000L); // 1 小时超时
+
+        String question = questionParam;
+        String conversationIdStr = conversationIdParam;
+
+        // --- 新增：对输入参数进行手动的UTF-8重编码 ---
+        try {
+            if (question != null) {
+                question = new String(question.getBytes(StandardCharsets.ISO_8859_1), StandardCharsets.UTF_8);
+                log.debug("/chatStreamChinese: Re-encoded question from ISO-8859-1 to UTF-8. Original length: {}, New length: {}", questionParam != null ? questionParam.length() : "null", question.length());
+            }
+            if (conversationIdStr != null && !conversationIdStr.trim().isEmpty() && !"new".equalsIgnoreCase(conversationIdStr.trim())) {
+                conversationIdStr = new String(conversationIdStr.getBytes(StandardCharsets.ISO_8859_1), StandardCharsets.UTF_8);
+                log.debug("/chatStreamChinese: Re-encoded conversationId from ISO-8859-1 to UTF-8. Original: [{}], New: [{}]", conversationIdParam, conversationIdStr);
+            }
+        } catch (Exception e) {
+            log.error("/chatStreamChinese: Error during manual UTF-8 re-encoding of request params. Original question: '{}', Original conversationId: '{}'", questionParam, conversationIdParam, e);
+        }
+        // --- 结束手动重编码 ---
+
         // --- 1. 用户认证 ---
         final Integer userId;
         try {
@@ -402,7 +438,7 @@ public class OpenAiController {
             return emitter;
         }
         // --- 2. 会话 ID 处理 (主要用于日志和客户端) ---
-        String currentConversationId = conversationId;
+        String currentConversationId = conversationIdStr;
         if (currentConversationId == null || currentConversationId.trim().isEmpty() || "new".equalsIgnoreCase(currentConversationId.trim())) {
             currentConversationId = UUID.randomUUID().toString();
             log.info("/chatStreamChinese: 为用户 {} 生成了新的会话 ID (用于跟踪): {}", userId, currentConversationId);
@@ -486,12 +522,12 @@ public class OpenAiController {
                 }
             }; // SseListener 定义结束
             // --- Emitter 生命周期回调 (日志记录和资源清理) ---
-            emitter.onCompletion(() -> log.info("/chatStreamChinese: SseEmitter 完成。用户 ID: {}, 会话 ID: {}", userId, conversationId));
+            emitter.onCompletion(() -> log.info("/chatStreamChinese: SseEmitter 完成。用户 ID: {}, 会话 ID: {}", userId, finalConversationId));
             emitter.onTimeout(() -> {
-                log.warn("/chatStreamChinese: SseEmitter 超时。用户 ID: {}, 会话 ID: {}", userId, conversationId);
+                log.warn("/chatStreamChinese: SseEmitter 超时。用户 ID: {}, 会话 ID: {}", userId, finalConversationId);
                 emitter.completeWithError(new RuntimeException("请求处理超时"));
             });
-            emitter.onError(e -> log.error("/chatStreamChinese: SseEmitter 发生错误。用户 ID: {}, 会话 ID: {}. 错误: {}", userId, conversationId, e.getMessage(), e));
+            emitter.onError(e -> log.error("/chatStreamChinese: SseEmitter 发生错误。用户 ID: {}, 会话 ID: {}. 错误: {}", userId, finalConversationId, e.getMessage(), e));
             // --- 6. 发起 AI 流式请求 ---
             try {
                 log.info("/chatStreamChinese: 调用 chatCompletionStream 开始。用户 ID: {}, 会话 ID: {}", userId, finalConversationId);
