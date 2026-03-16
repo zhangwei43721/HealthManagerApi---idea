@@ -47,28 +47,16 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
 
     @Override
     public Map<String, Object> login(User user) {
-        // 根据用户名和密码查询
-        LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(User::getUsername, user.getUsername());
-        wrapper.eq(User::getPassword, user.getPassword());
-        User loginUser = this.baseMapper.selectOne(wrapper);
-
-        // 如果查询到了用户，则生成Token返回给前端
-        if (loginUser != null) {
-            // 将用户密码设置为 null，避免密码泄露
-            loginUser.setPassword(null);
-
-            String token = jwtConfig.createToken(loginUser); //创建 Token
-            Map<String, Object> data = new HashMap<>();
-            data.put("token", token);
-            return data;
-        }
-        return null;
+        return authenticate(user);
     }
 
 
     @Override
     public Map<String, Object> Wxlogin(User user) {
+        return authenticate(user);
+    }
+
+    private Map<String, Object> authenticate(User user) {
         // 根据用户名和密码查询
         LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(User::getUsername, user.getUsername());
@@ -134,14 +122,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
             // 写入用户表
             user.setAvatar("http://localhost:9402/avatar-user.jpg");
             this.baseMapper.insert(user);
-            // 写入用户角色表
-            List<Integer> roleIdList = user.getRoleIdList();// 获取用户角色ID列表
-            if (roleIdList != null) {
-                for (Integer roleId : roleIdList) {
-                    // 将角色ID和用户ID插入到用户角色表中
-                    userRoleMapper.insert(new UserRole(null, user.getId(), roleId));
-                }
-            }
+            saveUserRoles(user.getId(), user.getRoleIdList());
         }
         return true;
 
@@ -149,21 +130,11 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
 
     @Override
     public User getUserById(Integer id) {
-
-        // 根据用户ID查询用户信息
         User user = this.baseMapper.selectById(id);
-        System.out.println(user);
-        // 根据用户ID查询用户角色列表
-        LambdaQueryWrapper<UserRole> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(UserRole::getUserId, id);
-        List<UserRole> userRoleList = userRoleMapper.selectList(wrapper); // 从用户角色表中查询出所有用户角色，并赋值给userRoleList变量
-
-        // 将用户角色ID列表设置到用户对象中
-        List<Integer> roleIdList = userRoleList.stream() // 将 userRoleList 转化为一个 Stream<UserRole> 对象，使得可以对其中的每一个元素进行操作
-                .map(UserRole::getRoleId)
-                .collect(Collectors.toList()); // 将每个roleId值收集到一个List<Integer>对象中，并赋值给roleIdList变量
-        user.setRoleIdList(roleIdList); // 将roleIdList设置到user对象中的roleIdList属性中
-
+        if (user == null) {
+            return null;
+        }
+        fillRoleIds(Collections.singletonList(user));
         return user;
     }
 
@@ -180,17 +151,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         if (userIds.isEmpty()) {
             return users;
         }
-
-        LambdaQueryWrapper<UserRole> wrapper = new LambdaQueryWrapper<>();
-        wrapper.in(UserRole::getUserId, userIds);
-        List<UserRole> userRoleList = userRoleMapper.selectList(wrapper);
-
-        Map<Integer, List<Integer>> roleIdsByUserId = userRoleList == null || userRoleList.isEmpty()
-                ? Collections.emptyMap()
-                : userRoleList.stream().collect(Collectors.groupingBy(
-                        UserRole::getUserId,
-                        Collectors.mapping(UserRole::getRoleId, Collectors.toList())
-                ));
+        Map<Integer, List<Integer>> roleIdsByUserId = getRoleIdsByUserIds(userIds);
 
         for (User user : users) {
             if (user == null || user.getId() == null) {
@@ -207,18 +168,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
     public void updateUser(User user) {
         // 更新用户表
         this.baseMapper.updateById(user);
-        // 清除原有的角色
-        LambdaQueryWrapper<UserRole> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(UserRole::getUserId, user.getId());
-        userRoleMapper.delete(wrapper);
-        // 设置新的角色
-        List<Integer> roleIdList = user.getRoleIdList(); // 获取用户新的角色 ID 列表
-        if (roleIdList != null) {
-            for (Integer roleId : roleIdList) {
-                // 设置新角色
-                userRoleMapper.insert(new UserRole(null, user.getId(), roleId));
-            }
-        }
+        replaceUserRoles(user.getId(), user.getRoleIdList());
     }
 
 
@@ -352,6 +302,35 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         } else {
             log.error("用户头像更新失败: userId={}", userId);
             return false;
+        }
+    }
+
+    private Map<Integer, List<Integer>> getRoleIdsByUserIds(List<Integer> userIds) {
+        LambdaQueryWrapper<UserRole> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(UserRole::getUserId, userIds);
+        List<UserRole> userRoleList = userRoleMapper.selectList(wrapper);
+        if (userRoleList == null || userRoleList.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        return userRoleList.stream().collect(Collectors.groupingBy(
+                UserRole::getUserId,
+                Collectors.mapping(UserRole::getRoleId, Collectors.toList())
+        ));
+    }
+
+    private void replaceUserRoles(Integer userId, List<Integer> roleIdList) {
+        LambdaQueryWrapper<UserRole> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(UserRole::getUserId, userId);
+        userRoleMapper.delete(wrapper);
+        saveUserRoles(userId, roleIdList);
+    }
+
+    private void saveUserRoles(Integer userId, List<Integer> roleIdList) {
+        if (roleIdList == null) {
+            return;
+        }
+        for (Integer roleId : roleIdList) {
+            userRoleMapper.insert(new UserRole(null, userId, roleId));
         }
     }
 

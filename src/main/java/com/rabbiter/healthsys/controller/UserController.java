@@ -68,7 +68,7 @@ public class UserController {
 
     @PostMapping("/Wxlogin")
     public Unification<Map<String, Object>> Wxlogin(@RequestBody User user) {
-        Map<String, Object> data = userService.login(user);
+        Map<String, Object> data = userService.Wxlogin(user);
         if (data != null) {
             return Unification.success(data);
         }
@@ -183,9 +183,12 @@ public class UserController {
 
     @GetMapping("/WxgetBodyNotes")
     public Unification<Map<String, Object>> WxgetBodyNotes(@RequestHeader("X-Token") String token) {
-        // 根据token获取用户信息
-        Map<String, Object> data = userService.WxgetUserId(token);
-        Integer userId = Integer.parseInt(data.get("id").toString());
+        Integer userId = parseUserId(token, "WxgetBodyNotes");
+        if (userId == null) {
+            return Unification.fail("用户信息获取失败");
+        }
+        Map<String, Object> data = new HashMap<>();
+        data.put("id", userId);
         List<BodyNotes> bodyNotes = bodyNotesService.getBodyNotes(userId);
         data.put("bodyNotes", bodyNotes);
         System.out.println(data);
@@ -232,15 +235,11 @@ public class UserController {
 
     @GetMapping("/getUserId")
     public Unification<Map<String, Object>> getUserId(@RequestHeader("X-Token") String token) {
-        try {
-            User user = jwtConfig.parseToken(token, User.class);
-            if (user != null) {
-                Map<String, Object> data = new HashMap<>();
-                data.put("id", user.getId());
-                return Unification.success(data);
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
+        Integer userId = parseUserId(token, "getUserId");
+        if (userId != null) {
+            Map<String, Object> data = new HashMap<>();
+            data.put("id", userId);
+            return Unification.success(data);
         }
         return Unification.fail("用户id获取失败");
     }
@@ -248,16 +247,12 @@ public class UserController {
 
     @GetMapping("/getBodyInfo")
     public Unification<Map<String, Object>> getBodyInfo(@RequestHeader("X-Token") String token) {
-        try {
-            User user = jwtConfig.parseToken(token, User.class);
-            if (user != null) {
-                Map<String, Object> data = userService.getBodyInfo(user.getId());
-                if (data != null) {
-                    return Unification.success(data);
-                }
+        Integer userId = parseUserId(token, "getBodyInfo");
+        if (userId != null) {
+            Map<String, Object> data = userService.getBodyInfo(userId);
+            if (data != null) {
+                return Unification.success(data);
             }
-        } catch (Exception e) {
-            e.printStackTrace();
         }
         return Unification.fail(20002);
     }
@@ -319,20 +314,16 @@ public class UserController {
             @RequestHeader("X-Token") String token,
             @RequestParam("pageNo") Long pageNo,
             @RequestParam("pageSize") Long pageSize) {
-        try {
-            User user = jwtConfig.parseToken(token, User.class);
-            if (user != null) {
-                LambdaQueryWrapper<BodyNotes> wrapper = new LambdaQueryWrapper<>();
-                wrapper.eq(BodyNotes::getId, user.getId());
-                Page<BodyNotes> page = new Page<>(pageNo, pageSize);
-                bodyNotesService.page(page, wrapper);
-                Map<String, Object> data = new HashMap<>();
-                data.put("total", page.getTotal());
-                data.put("rows", page.getRecords());
-                return Unification.success(data);
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
+        Integer userId = parseUserId(token, "getUserBodyList");
+        if (userId != null) {
+            LambdaQueryWrapper<BodyNotes> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(BodyNotes::getId, userId);
+            Page<BodyNotes> page = new Page<>(pageNo, pageSize);
+            bodyNotesService.page(page, wrapper);
+            Map<String, Object> data = new HashMap<>();
+            data.put("total", page.getTotal());
+            data.put("rows", page.getRecords());
+            return Unification.success(data);
         }
         return Unification.fail("用户信息获取失败");
     }
@@ -414,6 +405,16 @@ public class UserController {
             return Unification.success("头像更新成功");
         } else {
             return Unification.fail("头像更新失败");
+        }
+    }
+
+    private Integer parseUserId(String token, String action) {
+        try {
+            User user = jwtConfig.parseToken(token, User.class);
+            return user != null ? user.getId() : null;
+        } catch (Exception e) {
+            log.error("{}: token解析失败", action, e);
+            return null;
         }
     }
 

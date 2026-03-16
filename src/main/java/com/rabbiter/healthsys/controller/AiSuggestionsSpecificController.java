@@ -100,14 +100,13 @@ public class AiSuggestionsSpecificController {
         if (user == null) {
             return Unification.fail("认证失败，请检查Token或重新登录。");
         }
-        AiSuggestionsSpecific s = aiSuggestionsSpecificService.getLatestSuggestionByUserId(user.getId());
-        if (s == null) {
-            return Unification.fail("未找到历史健康建议");
-        }
-        Map<String,Object> res = new HashMap<>();
-        res.put("suggestion", s.getSuggestionHistoricalHealth());
-        res.put("generatedAt", s.getGeneratedAt());
-        return Unification.success(res);
+        AiSuggestionsSpecific latestSuggestion = aiSuggestionsSpecificService.getLatestSuggestionByUserId(user.getId());
+        return buildSuggestionResponse(
+                user.getId(),
+                "未找到历史健康建议",
+                latestSuggestion != null ? latestSuggestion.getSuggestionHistoricalHealth() : null,
+                latestSuggestion
+        );
     }
 
     /**
@@ -121,14 +120,13 @@ public class AiSuggestionsSpecificController {
         if (user == null) {
             return Unification.fail("认证失败，请检查Token或重新登录。");
         }
-        AiSuggestionsSpecific s = aiSuggestionsSpecificService.getLatestSuggestionByUserId(user.getId());
-        if (s == null) {
-            return Unification.fail("未找到当前健康建议");
-        }
-        Map<String,Object> res = new HashMap<>();
-        res.put("suggestion", s.getSuggestionCurrentHealth());
-        res.put("generatedAt", s.getGeneratedAt());
-        return Unification.success(res);
+        AiSuggestionsSpecific latestSuggestion = aiSuggestionsSpecificService.getLatestSuggestionByUserId(user.getId());
+        return buildSuggestionResponse(
+                user.getId(),
+                "未找到当前健康建议",
+                latestSuggestion != null ? latestSuggestion.getSuggestionCurrentHealth() : null,
+                latestSuggestion
+        );
     }
 
     /**
@@ -142,14 +140,13 @@ public class AiSuggestionsSpecificController {
         if (user == null) {
             return Unification.fail("认证失败，请检查Token或重新登录。");
         }
-        AiSuggestionsSpecific s = aiSuggestionsSpecificService.getLatestSuggestionByUserId(user.getId());
-        if (s == null) {
-            return Unification.fail("未找到运动信息建议");
-        }
-        Map<String,Object> res = new HashMap<>();
-        res.put("suggestion", s.getSuggestionSportInfo());
-        res.put("generatedAt", s.getGeneratedAt());
-        return Unification.success(res);
+        AiSuggestionsSpecific latestSuggestion = aiSuggestionsSpecificService.getLatestSuggestionByUserId(user.getId());
+        return buildSuggestionResponse(
+                user.getId(),
+                "未找到运动信息建议",
+                latestSuggestion != null ? latestSuggestion.getSuggestionSportInfo() : null,
+                latestSuggestion
+        );
     }
 
     /**
@@ -174,5 +171,19 @@ public class AiSuggestionsSpecificController {
             return emitter;
         }
         return aiSuggestionsSpecificService.analyzeSportSuggestion(token, conversationId);
+    }
+
+    private Unification<Map<String, Object>> buildSuggestionResponse(Integer userId,
+                                                                     String emptyMessage,
+                                                                     String suggestion,
+                                                                     AiSuggestionsSpecific latestSuggestion) {
+        if (latestSuggestion == null) {
+            log.info("用户 {} 未找到建议记录: {}", userId, emptyMessage);
+            return Unification.fail(emptyMessage);
+        }
+        Map<String, Object> res = new HashMap<>();
+        res.put("suggestion", suggestion);
+        res.put("generatedAt", latestSuggestion.getGeneratedAt());
+        return Unification.success(res);
     }
 }
