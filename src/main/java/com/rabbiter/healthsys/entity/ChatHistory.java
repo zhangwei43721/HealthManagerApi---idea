@@ -8,7 +8,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
-import java.time.LocalDateTime; // 使用 LocalDateTime 对应数据库的 DATETIME
+import java.time.LocalDateTime;
 
 /**
  * <p>
@@ -21,7 +21,7 @@ import java.time.LocalDateTime; // 使用 LocalDateTime 对应数据库的 DATET
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@TableName("j_chat_history") // 映射到数据库表名 j_chat_history
+@TableName("j_chat_history")
 public class ChatHistory implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -33,27 +33,37 @@ public class ChatHistory implements Serializable {
 
     private String conversationId;
 
-    private String role; // 消息发送者角色 (user, assistant)
+    private String role;
 
-    private String content; // 消息内容
+    private String content;
 
-    private LocalDateTime timestamp; // 消息发送/接收时间
+    private LocalDateTime timestamp;
 
-    private LocalDateTime createdAt; // 记录创建时间 (TIMESTAMP 字段)
+    private LocalDateTime createdAt;
 
-    public static ChatHistory fromChatMessage(Integer userId, String conversationId, io.github.lnyocly.ai4j.platform.openai.chat.entity.ChatMessage chatMessage) {
+    /**
+     * 创建用户消息历史记录
+     */
+    public static ChatHistory createUserMessage(Integer userId, String conversationId, String content) {
         ChatHistory history = new ChatHistory();
         history.setUserId(userId);
         history.setConversationId(conversationId);
-        history.setRole(chatMessage.getRole()); // 角色通常是 "user" 或 "assistant"
-        history.setContent(String.valueOf(chatMessage.getContent()));
-        history.setTimestamp(LocalDateTime.now()); // 使用当前时间作为消息时间
-        // createdAt 数据库通常会自动填充 CURRENT_TIMESTAMP
+        history.setRole("user");
+        history.setContent(content);
+        history.setTimestamp(LocalDateTime.now());
         return history;
     }
 
-    public io.github.lnyocly.ai4j.platform.openai.chat.entity.ChatMessage toChatMessage() {
-        return new io.github.lnyocly.ai4j.platform.openai.chat.entity.ChatMessage(this.role, this.content);
+    /**
+     * 创建助手消息历史记录
+     */
+    public static ChatHistory createAssistantMessage(Integer userId, String conversationId, String content) {
+        ChatHistory history = new ChatHistory();
+        history.setUserId(userId);
+        history.setConversationId(conversationId);
+        history.setRole("assistant");
+        history.setContent(content);
+        history.setTimestamp(LocalDateTime.now());
+        return history;
     }
-
 }

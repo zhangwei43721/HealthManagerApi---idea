@@ -38,6 +38,14 @@ spring:
     hibernate:
       ddl-auto: update
     show-sql: true
+  # Spring AI 配置 (使用 OpenAI 兼容模式接入 DeepSeek)
+  ai:
+    openai:
+      api-key: "sk-cd203451f4f34e09986239cfdd280b2a"
+      base-url: "https://api.deepseek.com"
+      chat:
+        options:
+          model: "deepseek-chat"
 
 # 日志配置
 logging:
@@ -64,11 +72,9 @@ mybatis-plus:
 
 # 自定义AI配置
 ai:
-  deepseek:
-    api-key: "sk-cd203451f4f34e09986239cfdd280b2a"
   model:
-    default: "deepseek-chat"    # /chatStream 接口使用的默认模型
-    chinese: "deepseek-reasoner"      # /chatStreamChinese 接口使用的模型
+    default: "deepseek-chat"      # /chatStream 接口使用的默认模型
+    chinese: "deepseek-reasoner"  # 推理模型
   # YOLOv10 图片检测相关配置
   image-detection:
     # YOLOv10 API地址
