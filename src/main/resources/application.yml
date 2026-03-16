@@ -63,9 +63,9 @@ ai:
   # YOLOv10 图片检测相关配置
   image-detection:
     # YOLOv10 API地址
-    api-url: "http://120.55.192.74:8000/detect"
-    # 服务器基础URL，用于构建完整图片URL
-    base-url: "http://120.55.192.74:8000"
+    api-url: "http://127.0.0.1:8001/detect"
+    # YOLO服务基础URL；为空时将从 api-url 自动推导
+    base-url: "http://127.0.0.1:8001"
     # 图片成功检测后发送给AI的提示词模板
     success-prompt: "用户上传了一张图片。%s %s。这是用户随图片发送的消息：\"%s\"，请根据用户发送的内容做分析，并对用户回答分析结果"
     # 图片检测失败时发送给AI的提示词模板

@@ -127,6 +127,7 @@ public class UserController {
         Page<User> page = new Page<>(pageNo, pageSize);
 
         userService.page(page, wrapper);
+        userService.fillRoleIds(page.getRecords());
         Map<String, Object> data = new HashMap<>();
         data.put("total", page.getTotal()); // 用户总数
         data.put("rows", page.getRecords()); // 用户列表

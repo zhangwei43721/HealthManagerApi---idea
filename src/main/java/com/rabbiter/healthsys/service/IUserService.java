@@ -3,6 +3,7 @@ package com.rabbiter.healthsys.service;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.rabbiter.healthsys.entity.User;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -24,6 +25,8 @@ public interface IUserService extends IService<User> {
     boolean addUser(User user);
 
     User getUserById(Integer id);
+
+    List<User> fillRoleIds(List<User> users);
 
     void updateUser(User user);
 

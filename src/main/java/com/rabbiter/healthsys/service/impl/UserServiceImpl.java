@@ -18,6 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import javax.transaction.Transactional;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -164,6 +165,40 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         user.setRoleIdList(roleIdList); // 将roleIdList设置到user对象中的roleIdList属性中
 
         return user;
+    }
+
+    @Override
+    public List<User> fillRoleIds(List<User> users) {
+        if (users == null || users.isEmpty()) {
+            return users;
+        }
+
+        List<Integer> userIds = users.stream()
+                .filter(user -> user != null && user.getId() != null)
+                .map(User::getId)
+                .collect(Collectors.toList());
+        if (userIds.isEmpty()) {
+            return users;
+        }
+
+        LambdaQueryWrapper<UserRole> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(UserRole::getUserId, userIds);
+        List<UserRole> userRoleList = userRoleMapper.selectList(wrapper);
+
+        Map<Integer, List<Integer>> roleIdsByUserId = userRoleList == null || userRoleList.isEmpty()
+                ? Collections.emptyMap()
+                : userRoleList.stream().collect(Collectors.groupingBy(
+                        UserRole::getUserId,
+                        Collectors.mapping(UserRole::getRoleId, Collectors.toList())
+                ));
+
+        for (User user : users) {
+            if (user == null || user.getId() == null) {
+                continue;
+            }
+            user.setRoleIdList(roleIdsByUserId.getOrDefault(user.getId(), Collections.emptyList()));
+        }
+        return users;
     }
 
 

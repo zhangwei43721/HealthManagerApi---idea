@@ -20,16 +20,25 @@ import okhttp3.Response;
 
 import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+import javax.annotation.PreDestroy;
+import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import org.springframework.lang.Nullable;
 
@@ -40,7 +49,6 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.core.type.TypeReference;
-import java.util.Map;
 
 /**
  * AI聊天接口
@@ -52,6 +60,10 @@ import java.util.Map;
 @RequiredArgsConstructor // 自动生成包含 final 字段的构造函数
 @Slf4j // Lombok 注解，用于自动生成日志记录器
 public class OpenAiController {
+
+    private static final String DETECTION_RESULT_PROXY_PATH = "/image-detection/result/";
+    private final ExecutorService streamExecutor = Executors.newCachedThreadPool();
+    private final Map<String, ActiveChatStream> activeChatStreams = new ConcurrentHashMap<>();
 
     private final AiService aiService; // 注入 AI 服务工厂
     private final IChatHistoryService chatHistoryService; // 注入聊天历史记录服务
@@ -98,7 +110,8 @@ public class OpenAiController {
             @RequestHeader("X-Token") String token,
             @RequestPart("message") String messageParam, // 重命名原始参数
             @RequestPart(value = "file", required = false) MultipartFile file,
-            @RequestPart(value = "conversationId", required = false) String conversationIdParam // 重命名原始参数
+            @RequestPart(value = "conversationId", required = false) String conversationIdParam, // 重命名原始参数
+            HttpServletRequest request
     ) {
         SseEmitter emitter = new SseEmitter(3600000L); // 设置 SSE 超时时间 (单位: 毫秒)
 
@@ -160,13 +173,28 @@ public class OpenAiController {
         }
 
         final String finalConversationId = currentConversationId;
-        final Integer finalUserId = userId; // Use final variable for lambda
+        final Integer finalUserId = userId;
+        final String streamKey = buildStreamKey(finalUserId, finalConversationId);
+        final String backendBaseUrl = ServletUriComponentsBuilder.fromRequestUri(request)
+                .replacePath(request.getContextPath())
+                .replaceQuery(null)
+                .build()
+                .toUriString();
+        cancelActiveStream(streamKey, "同一会话有新的流式请求启动");
+        final ActiveChatStream activeStream = new ActiveChatStream(emitter);
+        activeChatStreams.put(streamKey, activeStream);
 
         // --- 新增：异步处理图片和构建消息 ---
-        Executors.newSingleThreadExecutor().submit(() -> {
+        streamExecutor.submit(() -> {
             String processedMessage = finalMessage; // <<< 使用 finalMessage
             String detectionResultImageUrl; // 检测结果图片 URL
             String detectionInfo; // 检测结果文字描述
+
+            if (activeStream.isCancelled()) {
+                log.info("/chatStream: 流在启动前已被取消。用户 ID: {}, 会话 ID: {}", finalUserId, finalConversationId);
+                cleanupActiveStream(streamKey, activeStream);
+                return;
+            }
 
             // --- 3. (如果提供了文件) 调用对象检测 API ---
             if (file != null && !file.isEmpty()) {
@@ -200,6 +228,7 @@ public class OpenAiController {
                         if ("success".equals(detectionResponse.get("status"))) {
                             List<Map<String, Object>> detections = (List<Map<String, Object>>) detectionResponse.get("detections");
                             detectionResultImageUrl = (String) detectionResponse.get("result_image_url"); // 获取结果图片 URL
+                            String proxiedResultImageUrl = buildDetectionResultProxyUrl(backendBaseUrl, detectionResultImageUrl);
 
                             if (detections != null && !detections.isEmpty()) {
                                 StringBuilder sb = new StringBuilder("图片中检测到以下对象：");
@@ -218,33 +247,32 @@ public class OpenAiController {
                                 log.info("/chatStream: {}", detectionInfo);
                             }
                             // 使用配置的提示词模板而不是硬编码
-                            String resultImageInfo = detectionResultImageUrl != null ? 
-                                "处理后的图片地址：" + imageDetectionBaseUrl + detectionResultImageUrl : "";
+                            String resultImageInfo = proxiedResultImageUrl != null ?
+                                "处理后的图片地址：" + proxiedResultImageUrl : "";
                             processedMessage = String.format(imageDetectionSuccessPrompt, detectionInfo, resultImageInfo, finalMessage); // <<< 使用 finalMessage
 
                             // 可以考虑将检测结果图片 URL 通过 SSE 发送给前端
-                            if (detectionResultImageUrl != null) {
+                            if (proxiedResultImageUrl != null) {
                                 try {
-                                    // 使用配置的基础URL
-                                    emitter.send(SseEmitter.event().name("detectionResultImage").data(imageDetectionBaseUrl + detectionResultImageUrl));
-                                    log.info("/chatStream: 已将检测结果图片 URL 发送给客户端: {}", imageDetectionBaseUrl + detectionResultImageUrl);
+                                    emitter.send(SseEmitter.event().name("detectionResultImage").data(proxiedResultImageUrl));
+                                    log.info("/chatStream: 已将检测结果图片 URL 发送给客户端: {}", proxiedResultImageUrl);
                                 } catch (IOException e) {
                                     log.error("/chatStream: 发送检测结果图片 URL 至客户端失败", e);
                                 }
                             }
 
                         } else {
-                            String errorMsg = (String) detectionResponse.getOrDefault("message", "检测失败，未提供具体原因。");
+                            String errorMsg = extractDetectionErrorMessage(detectionResponse);
                             log.error("/chatStream: 对象检测 API 返回错误状态: {}", errorMsg);
                             // 使用配置的错误提示词模板
                             processedMessage = String.format(imageDetectionErrorPrompt, errorMsg, finalMessage); // <<< 使用 finalMessage
                         }
-                    } else {
-                        log.error("/chatStream: 调用对象检测 API 失败，状态码: {}", responseEntity.getStatusCode());
-                        // 使用配置的API错误提示词模板
-                        processedMessage = String.format(imageDetectionApiErrorPrompt, responseEntity.getStatusCodeValue(), finalMessage); // <<< 使用 finalMessage
                     }
 
+                } catch (HttpStatusCodeException e) {
+                    String errorMsg = extractHttpErrorMessage(e);
+                    log.error("/chatStream: 调用对象检测 API 失败，状态码: {}, 响应: {}", e.getStatusCode().value(), errorMsg, e);
+                    processedMessage = String.format(imageDetectionErrorPrompt, errorMsg, finalMessage);
                 } catch (Exception e) {
                     log.error("/chatStream: 调用对象检测 API 或处理其响应时发生异常", e);
                     // 使用配置的异常处理提示词模板
@@ -286,6 +314,13 @@ public class OpenAiController {
                 @Override
                 protected void send() {
                     try {
+                        if (activeStream.isCancelled()) {
+                            EventSource eventSource = getEventSource();
+                            if (eventSource != null) {
+                                eventSource.cancel();
+                            }
+                            return;
+                        }
                         String currentData = this.getCurrData();
                         if (currentData != null && !currentData.isEmpty()) {
                             assistantResponseBuilder.append(currentData); // 累积数据块
@@ -302,6 +337,7 @@ public class OpenAiController {
                 }
                 @Override
                 public void onOpen(@NotNull EventSource eventSource, @NotNull Response response) {
+                    activeStream.attachEventSource(eventSource);
                     log.info("/chatStream: AI 流连接已打开。用户 ID: {}, 会话 ID: {}, 响应状态码: {}", finalUserId, finalConversationId, response.code());
                 }
                 @Override
@@ -334,6 +370,7 @@ public class OpenAiController {
                                 finalUserId, finalConversationId);
                     }
                     emitter.complete();
+                    cleanupActiveStream(streamKey, activeStream);
                     log.info("/chatStream: 已在 AI 流关闭后将 SseEmitter 标记为完成。用户 ID: {}, 会话 ID: {}", 
                             finalUserId, finalConversationId);
                 }
@@ -346,28 +383,26 @@ public class OpenAiController {
                     }
                     log.error("/chatStream: AI 流连接失败。用户 ID: {}, 会话 ID: {}, 状态码: {}, 响应体: {}, 异常: {}",
                               finalUserId, finalConversationId, responseCode, responseBody, (t != null ? t.getMessage() : "无异常信息"), t);
+                    cleanupActiveStream(streamKey, activeStream);
                     emitter.completeWithError(t != null ? t : new RuntimeException("AI 流处理失败，响应码: " + responseCode));
                 }
             };
 
             // --- 8. Emitter 事件回调 (移除对 cancelEventSource 的直接调用，依赖 SseListener 和 Emitter 自身的处理) ---
-            emitter.onCompletion(() -> log.info("/chatStreamLifecycle: SseEmitter 完成。用户 ID: {}, 会话 ID: {}", finalUserId, finalConversationId));
+            emitter.onCompletion(() -> {
+                cleanupActiveStream(streamKey, activeStream);
+                log.info("/chatStreamLifecycle: SseEmitter 完成。用户 ID: {}, 会话 ID: {}", finalUserId, finalConversationId);
+            });
             emitter.onTimeout(() -> {
                 log.warn("/chatStreamLifecycle: SseEmitter 超时。用户 ID: {}, 会话 ID: {}", finalUserId, finalConversationId);
-                EventSource es = sseListener.getEventSource(); // 尝试获取 EventSource
-                 if (es != null) {
-                    log.warn("/chatStreamLifecycle: 因 SseEmitter 超时，尝试取消 EventSource。");
-                    es.cancel();
-                 }
+                activeStream.cancel("请求处理超时");
+                cleanupActiveStream(streamKey, activeStream);
                 emitter.completeWithError(new RuntimeException("请求处理超时"));
             });
             emitter.onError(e -> {
                 log.error("/chatStreamLifecycle: SseEmitter 发生错误。用户 ID: {}, 会话 ID: {}. 错误: {}", finalUserId, finalConversationId, e.getMessage(), e);
-                EventSource es = sseListener.getEventSource(); // 尝试获取 EventSource
-                 if (es != null) {
-                     log.error("/chatStreamLifecycle: 因 SseEmitter 错误，尝试取消 EventSource。");
-                     es.cancel();
-                 }
+                activeStream.cancel("SseEmitter 发生错误");
+                cleanupActiveStream(streamKey, activeStream);
             });
 
 
@@ -378,6 +413,7 @@ public class OpenAiController {
                 log.info("/chatStream: chatCompletionStream 方法已为用户 {} 的会话 {} 返回。异步处理继续。", finalUserId, finalConversationId);
             } catch (Exception e) {
                 log.error("/chatStream: 为用户 {} 的会话 {} 调用 chatCompletionStream 时发生异常: {}", finalUserId, finalConversationId, e.getMessage(), e);
+                cleanupActiveStream(streamKey, activeStream);
                 emitter.completeWithError(e);
             }
         });
@@ -462,7 +498,7 @@ public class OpenAiController {
                 .build();
         log.info("/chatStreamChinese: 使用模型: {}。用户 ID: {}, 会话 ID: {}", chineseChatModel, userId, finalConversationId);
         // --- 5. 异步处理 AI 请求与 SSE ---
-        Executors.newSingleThreadExecutor().submit(() -> {
+        streamExecutor.submit(() -> {
             SseListener sseListener = new SseListener() {
                 @Override
                 protected void send() {
@@ -543,7 +579,70 @@ public class OpenAiController {
         return emitter;
     }
 
+    @GetMapping("/image-detection/result/{fileName:.+}")
+    public ResponseEntity<byte[]> getDetectionResultImage(@PathVariable String fileName) {
+        String targetUrl = buildDetectionResultFetchUrl(fileName);
+        try {
+            ResponseEntity<byte[]> responseEntity = restTemplate.exchange(targetUrl, HttpMethod.GET, HttpEntity.EMPTY, byte[].class);
+            HttpHeaders headers = new HttpHeaders();
+            MediaType contentType = responseEntity.getHeaders().getContentType();
+            headers.setContentType(contentType != null ? contentType : MediaType.IMAGE_JPEG);
+            return new ResponseEntity<>(responseEntity.getBody(), headers, responseEntity.getStatusCode());
+        } catch (HttpStatusCodeException e) {
+            log.error("/image-detection/result: 获取结果图失败，文件: {}, 状态码: {}, 响应: {}", fileName, e.getStatusCode().value(), e.getResponseBodyAsString(), e);
+            return ResponseEntity.status(e.getStatusCode()).build();
+        }
+    }
+
+    @PostMapping("/chatStream/cancel")
+    public String cancelChatStream(
+            @RequestHeader("X-Token") String token,
+            @RequestParam String conversationId
+    ) {
+        Integer userId;
+        try {
+            User user = jwtConfig.parseToken(token, User.class);
+            if (user == null || user.getId() == null) {
+                return "取消失败：用户信息无效。";
+            }
+            userId = user.getId();
+        } catch (Exception e) {
+            log.error("/chatStream/cancel: Token 解析失败。Token: {}", token, e);
+            return "取消失败：认证信息无效或已过期。";
+        }
+
+        String streamKey = buildStreamKey(userId, conversationId);
+        ActiveChatStream activeStream = activeChatStreams.remove(streamKey);
+        if (activeStream == null) {
+            return "当前会话没有正在进行的流式响应。";
+        }
+
+        activeStream.cancel("用户主动停止生成");
+        log.info("/chatStream/cancel: 已取消流式响应。用户 ID: {}, 会话 ID: {}", userId, conversationId);
+        return "已停止生成。";
+    }
+
     // --- 辅助方法 ---
+
+    @PreDestroy
+    public void shutdownExecutors() {
+        streamExecutor.shutdown();
+    }
+
+    private String buildStreamKey(Integer userId, String conversationId) {
+        return userId + ":" + conversationId;
+    }
+
+    private void cancelActiveStream(String streamKey, String reason) {
+        ActiveChatStream existingStream = activeChatStreams.remove(streamKey);
+        if (existingStream != null) {
+            existingStream.cancel(reason);
+        }
+    }
+
+    private void cleanupActiveStream(String streamKey, ActiveChatStream activeStream) {
+        activeChatStreams.remove(streamKey, activeStream);
+    }
 
     /**
      * 安全地发送 SSE 事件，处理潜在的 IOException。
@@ -594,6 +693,119 @@ public class OpenAiController {
             details += " (读取响应体失败: " + e.getMessage() + ")";
         }
         return details;
+    }
+
+    private String extractDetectionErrorMessage(@Nullable Map<String, Object> detectionResponse) {
+        if (detectionResponse == null || detectionResponse.isEmpty()) {
+            return "检测失败，未返回可解析内容。";
+        }
+        Object message = detectionResponse.get("message");
+        if (message == null) {
+            message = detectionResponse.get("detail");
+        }
+        return message != null ? String.valueOf(message) : "检测失败，未提供具体原因。";
+    }
+
+    private String extractHttpErrorMessage(HttpStatusCodeException e) {
+        String responseBody = e.getResponseBodyAsString();
+        if (responseBody == null || responseBody.trim().isEmpty()) {
+            return String.format("调用对象检测服务失败 (状态码: %d)", e.getStatusCode().value());
+        }
+        try {
+            Map<String, Object> errorBody = objectMapper.readValue(responseBody, new TypeReference<Map<String, Object>>() {});
+            return extractDetectionErrorMessage(errorBody);
+        } catch (Exception parseException) {
+            log.warn("/chatStream: 解析对象检测 API 错误响应失败，原始响应体: {}", responseBody, parseException);
+            return responseBody;
+        }
+    }
+
+    @Nullable
+    private String buildDetectionResultProxyUrl(String backendBaseUrl, @Nullable String resultImageUrl) {
+        String fileName = extractDetectionResultFileName(resultImageUrl);
+        if (fileName == null) {
+            return null;
+        }
+        String normalizedBaseUrl = trimTrailingSlash(backendBaseUrl);
+        return normalizedBaseUrl + DETECTION_RESULT_PROXY_PATH + fileName;
+    }
+
+    private String buildDetectionResultFetchUrl(String fileName) {
+        String baseUrl = getDetectionServiceBaseUrl();
+        return trimTrailingSlash(baseUrl) + "/get_result_image/" + fileName;
+    }
+
+    private String getDetectionServiceBaseUrl() {
+        if (imageDetectionBaseUrl != null && !imageDetectionBaseUrl.trim().isEmpty()) {
+            return imageDetectionBaseUrl.trim();
+        }
+        try {
+            URI detectionApiUri = URI.create(imageDetectionApiUrl);
+            StringBuilder baseUrl = new StringBuilder()
+                    .append(detectionApiUri.getScheme())
+                    .append("://")
+                    .append(detectionApiUri.getHost());
+            if (detectionApiUri.getPort() > -1) {
+                baseUrl.append(":").append(detectionApiUri.getPort());
+            }
+            return baseUrl.toString();
+        } catch (Exception e) {
+            log.warn("解析 ai.image-detection.api-url 失败，将回退使用原始配置。api-url={}", imageDetectionApiUrl, e);
+            return imageDetectionApiUrl;
+        }
+    }
+
+    @Nullable
+    private String extractDetectionResultFileName(@Nullable String resultImageUrl) {
+        if (resultImageUrl == null || resultImageUrl.trim().isEmpty()) {
+            return null;
+        }
+        int lastSlashIndex = resultImageUrl.lastIndexOf('/');
+        return lastSlashIndex >= 0 ? resultImageUrl.substring(lastSlashIndex + 1) : resultImageUrl;
+    }
+
+    private String trimTrailingSlash(String url) {
+        if (url == null || url.isEmpty()) {
+            return "";
+        }
+        return url.endsWith("/") ? url.substring(0, url.length() - 1) : url;
+    }
+
+    private static class ActiveChatStream {
+        private final SseEmitter emitter;
+        private final AtomicBoolean cancelled = new AtomicBoolean(false);
+        @Nullable
+        private volatile EventSource eventSource;
+
+        private ActiveChatStream(SseEmitter emitter) {
+            this.emitter = emitter;
+        }
+
+        private void attachEventSource(@Nullable EventSource eventSource) {
+            this.eventSource = eventSource;
+            if (isCancelled() && eventSource != null) {
+                eventSource.cancel();
+            }
+        }
+
+        private boolean isCancelled() {
+            return cancelled.get();
+        }
+
+        private void cancel(String reason) {
+            if (!cancelled.compareAndSet(false, true)) {
+                return;
+            }
+            EventSource currentEventSource = this.eventSource;
+            if (currentEventSource != null) {
+                currentEventSource.cancel();
+            }
+            try {
+                emitter.complete();
+            } catch (Exception ignored) {
+                // ignore emitter lifecycle races on cancellation
+            }
+        }
     }
 
     /**
