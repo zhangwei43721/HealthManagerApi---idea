@@ -4,7 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper; // 确保导入 ObjectMapper
-import com.rabbiter.healthsys.config.JwtConfig;
+import com.rabbiter.healthsys.common.UserTokenResolver;
 import com.rabbiter.healthsys.controller.OpenAiController;
 import com.rabbiter.healthsys.entity.*; // 导入所有 entity
 import com.rabbiter.healthsys.mapper.AiSuggestionsSpecificMapper;
@@ -43,7 +43,7 @@ public class AiSuggestionsSpecificServiceImpl extends ServiceImpl<AiSuggestionsS
     private OpenAiController openAiController; // 确保已注入
 
     @Autowired
-    private JwtConfig jwtConfig; // 确保已注入
+    private UserTokenResolver userTokenResolver;
 
     @Autowired
     private IBodyNotesService bodyNotesService; // 确保已注入
@@ -119,7 +119,7 @@ public class AiSuggestionsSpecificServiceImpl extends ServiceImpl<AiSuggestionsS
 
     @Override
     public void generateHistoricalReport(String token) {
-        User user = jwtConfig.parseToken(token, User.class);
+        User user = userTokenResolver.parseUser(token);
         if (user == null || user.getId() == null) {
             throw new IllegalArgumentException("认证失败，请重新登录。");
         }
@@ -196,7 +196,7 @@ public class AiSuggestionsSpecificServiceImpl extends ServiceImpl<AiSuggestionsS
 
     @Override
     public void generateCurrentReport(String token) {
-        User user = jwtConfig.parseToken(token, User.class);
+        User user = userTokenResolver.parseUser(token);
         if (user == null || user.getId() == null) {
             throw new IllegalArgumentException("认证失败，请重新登录。");
         }
@@ -275,7 +275,7 @@ public class AiSuggestionsSpecificServiceImpl extends ServiceImpl<AiSuggestionsS
 
     @Override
     public void generateSportReport(String token) {
-        User user = jwtConfig.parseToken(token, User.class);
+        User user = userTokenResolver.parseUser(token);
         if (user == null || user.getId() == null) {
             throw new IllegalArgumentException("认证失败，请重新登录。");
         }
@@ -362,7 +362,7 @@ public class AiSuggestionsSpecificServiceImpl extends ServiceImpl<AiSuggestionsS
     @Override
     public SseEmitter analyzeSportSuggestion(String token, String conversationId) {
         // ... (代码不变) ...
-        User user = jwtConfig.parseToken(token, User.class);
+        User user = userTokenResolver.parseUser(token);
         if (user == null || user.getId() == null) {
             throw new IllegalArgumentException("认证失败，请重新登录。");
         }

@@ -1,7 +1,7 @@
 package com.rabbiter.healthsys.controller;
 
 import com.rabbiter.healthsys.common.Unification;
-import com.rabbiter.healthsys.config.JwtConfig;
+import com.rabbiter.healthsys.common.UserTokenResolver;
 import com.rabbiter.healthsys.entity.User;
 import com.rabbiter.healthsys.service.IUserService;
 import com.rabbiter.healthsys.service.FileService;
@@ -31,7 +31,7 @@ public class FileController {
 
     // --- 依赖注入 ---
     private final IUserService userService;
-    private final JwtConfig jwtConfig; // 新增：注入 JwtConfig 用于 Token 解析
+    private final UserTokenResolver userTokenResolver;
     private final FileService fileService; // 新增：注入 FileService
 
     // --- Token 验证辅助方法 (仿照 AiSuggestionsSpecificController) ---
@@ -46,7 +46,7 @@ public class FileController {
             return null;
         }
         try {
-            User user = jwtConfig.parseToken(token, User.class);
+            User user = userTokenResolver.parseUser(token);
             if (user == null || user.getId() == null) {
                 log.error("Token解析成功，但未能获取有效的用户ID。Token: {}", token);
                 return null;

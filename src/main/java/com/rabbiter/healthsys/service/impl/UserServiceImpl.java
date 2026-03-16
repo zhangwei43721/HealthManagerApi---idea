@@ -2,7 +2,7 @@ package com.rabbiter.healthsys.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.rabbiter.healthsys.config.JwtConfig;
+import com.rabbiter.healthsys.common.UserTokenResolver;
 import com.rabbiter.healthsys.entity.Body;
 import com.rabbiter.healthsys.entity.Menu;
 import com.rabbiter.healthsys.entity.User;
@@ -40,7 +40,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
     private final UserRoleMapper userRoleMapper;
     private final IMenuService menuService;
     private final IUserRoleService userRoleService;
-    private final JwtConfig jwtConfig;
+    private final UserTokenResolver userTokenResolver;
     private final IBodyService bodyMapper;
     private User loginUser = null;
 
@@ -68,7 +68,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
             // 将用户密码设置为 null，避免密码泄露
             loginUser.setPassword(null);
 
-            String token = jwtConfig.createToken(loginUser); //创建 Token
+            String token = userTokenResolver.createToken(loginUser); //创建 Token
             Map<String, Object> data = new HashMap<>();
             data.put("token", token);
             return data;
@@ -81,7 +81,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
     public Map<String, Object> getUserInfo(String token) {
         try {
             // 通过 JWT 解析 token 得到用户信息
-            loginUser = jwtConfig.parseToken(token, User.class);
+            loginUser = userTokenResolver.parseUser(token);
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -232,7 +232,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         User WxloginUser = null;
         try {
             // 通过 JWT 解析 token 得到用户信息
-            WxloginUser = jwtConfig.parseToken(token, User.class);
+            WxloginUser = userTokenResolver.parseUser(token);
         } catch (Exception e) {
             e.printStackTrace();
         }

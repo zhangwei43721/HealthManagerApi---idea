@@ -3,7 +3,7 @@ package com.rabbiter.healthsys.controller;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.rabbiter.healthsys.common.Unification;
-import com.rabbiter.healthsys.config.JwtConfig;
+import com.rabbiter.healthsys.common.UserTokenResolver;
 import com.rabbiter.healthsys.entity.Body;
 import com.rabbiter.healthsys.entity.BodyNotes;
 import com.rabbiter.healthsys.entity.SportInfo;
@@ -34,7 +34,7 @@ import java.util.Map;
 @Slf4j
 public class UserController {
     /** JWT 配置类，用于解析和校验用户 token */
-    private final JwtConfig jwtConfig;
+    private final UserTokenResolver userTokenResolver;
     /** 用户服务，处理用户相关的业务逻辑 */
     private final IUserService userService;
     /** 体征服务，处理体征信息相关的业务逻辑 */
@@ -410,8 +410,7 @@ public class UserController {
 
     private Integer parseUserId(String token, String action) {
         try {
-            User user = jwtConfig.parseToken(token, User.class);
-            return user != null ? user.getId() : null;
+            return userTokenResolver.parseUserId(token);
         } catch (Exception e) {
             log.error("{}: token解析失败", action, e);
             return null;

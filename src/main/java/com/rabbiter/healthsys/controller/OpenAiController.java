@@ -10,7 +10,7 @@ import io.github.lnyocly.ai4j.service.factor.AiService;
 
 import com.rabbiter.healthsys.entity.ChatHistory;
 import com.rabbiter.healthsys.service.IChatHistoryService;
-import com.rabbiter.healthsys.config.JwtConfig;
+import com.rabbiter.healthsys.common.UserTokenResolver;
 import com.rabbiter.healthsys.entity.User;
 
 import lombok.RequiredArgsConstructor;
@@ -67,7 +67,7 @@ public class OpenAiController {
 
     private final AiService aiService; // 注入 AI 服务工厂
     private final IChatHistoryService chatHistoryService; // 注入聊天历史记录服务
-    private final JwtConfig jwtConfig; // 注入 JWT 配置，用于 Token 解析
+    private final UserTokenResolver userTokenResolver; // Token 解析辅助组件
     private final RestTemplate restTemplate; // 注入 RestTemplate 用于 HTTP 请求
     private final ObjectMapper objectMapper; // 注入 ObjectMapper 用于 JSON 处理
 
@@ -687,8 +687,7 @@ public class OpenAiController {
 
     @Nullable
     private Integer parseUserId(String token) {
-        User user = jwtConfig.parseToken(token, User.class);
-        return user != null ? user.getId() : null;
+        return userTokenResolver.parseUserId(token);
     }
 
     /**
@@ -830,12 +829,11 @@ public class OpenAiController {
     public List<ChatHistory> viewHistory(@RequestHeader("X-Token") String token) { // <<< 从 Header "X-Token" 获取 Token
         Integer userId;
         try {
-            User user = jwtConfig.parseToken(token, User.class);
-            if (user == null || user.getId() == null) {
+            userId = parseUserId(token);
+            if (userId == null) {
                 log.error("viewHistory: Token解析成功，但获取用户ID失败。Token: {}", token);
                 return new ArrayList<>();
             }
-            userId = user.getId();
             log.info("viewHistory: Token解析成功，用户ID: {}", userId);
         } catch (Exception e) {
             log.error("viewHistory: Token解析失败。Token: {}", token, e);
@@ -866,12 +864,11 @@ public class OpenAiController {
     ) {
         Integer userId;
         try {
-            User user = jwtConfig.parseToken(token, User.class);
-            if (user == null || user.getId() == null) {
+            userId = parseUserId(token);
+            if (userId == null) {
                 log.error("resetHistory: Token解析成功，但获取用户ID失败。Token: {}", token);
                 return "删除失败：无法识别有效的用户信息。";
             }
-            userId = user.getId();
             log.info("resetHistory: Token解析成功，用户ID: {}", userId);
         } catch (Exception e) {
             log.error("resetHistory: Token解析失败。Token: {}", token, e);

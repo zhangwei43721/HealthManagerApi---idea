@@ -3,7 +3,7 @@ package com.rabbiter.healthsys.controller;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.rabbiter.healthsys.common.Unification;
-import com.rabbiter.healthsys.config.JwtConfig;
+import com.rabbiter.healthsys.common.UserTokenResolver;
 import com.rabbiter.healthsys.entity.User;
 import com.rabbiter.healthsys.entity.AiSuggestionsSpecific;
 import com.rabbiter.healthsys.service.IAiSuggestionsSpecificService;
@@ -30,7 +30,7 @@ import java.util.Map;
 public class AiSuggestionsSpecificController {
 
     private final IAiSuggestionsSpecificService aiSuggestionsSpecificService;
-    private final JwtConfig jwtConfig; // 注入 JWT 配置
+    private final UserTokenResolver userTokenResolver;
 
     /**
      * 私有辅助方法：验证 Token 并获取用户信息
@@ -43,7 +43,7 @@ public class AiSuggestionsSpecificController {
             return null;
         }
         try {
-            User user = jwtConfig.parseToken(token, User.class);
+            User user = userTokenResolver.parseUser(token);
             if (user == null || user.getId() == null) {
                 log.error("Token解析成功，但未能获取有效的用户ID。Token: {}", token);
                 return null;
