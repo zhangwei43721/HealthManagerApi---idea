@@ -18,6 +18,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -119,241 +120,129 @@ public class AiSuggestionsSpecificServiceImpl extends ServiceImpl<AiSuggestionsS
 
     @Override
     public void generateHistoricalReport(String token) {
-        User user = userTokenResolver.parseUser(token);
-        if (user == null || user.getId() == null) {
-            throw new IllegalArgumentException("认证失败，请重新登录。");
-        }
-        final Integer userId = user.getId();
+        final Integer userId = requireUserId(token);
         String conversationId = UUID.randomUUID().toString(); // 每次生成报告用新的对话ID
 
-        // 1. 获取或创建最新的记录
-        AiSuggestionsSpecific targetRecord = getOrCreateLatestSuggestionRecordForUpdate(userId);
-        final Integer targetRecordId = targetRecord.getId();
-
-        // 2. 立即更新目标记录的对应字段为“生成中”状态
-        log.info("用户 {} 准备生成历史健康报告, 更新记录 ID: {} 状态为生成中...", userId, targetRecordId);
-        targetRecord.setSuggestionHistoricalHealth("报告生成中..."); // 设置占位符
-        // 如果需要，可以更新生成时间戳
-        // targetRecord.setGeneratedAt(LocalDateTime.now());
-        boolean updatedPlaceholder = this.updateById(targetRecord); // 更新数据库
-        if (!updatedPlaceholder) {
-            log.warn("用户 {} 更新记录 ID: {} 的历史健康报告为 '生成中...' 状态失败", userId, targetRecordId);
-            // 可以选择继续或抛出异常，这里选择继续，但日志记录了警告
-        }
+        final Integer targetRecordId = prepareSuggestionRecord(
+                userId,
+                "历史健康报告",
+                "报告生成中...",
+                AiSuggestionsSpecific::setSuggestionHistoricalHealth
+        );
 
         // 准备 AI 请求数据
         List<BodyNotes> notes = bodyNotesService.getLatestBodyNotesByUserId(userId);
         String dataJson;
         try { dataJson = objectMapper.writeValueAsString(notes); } catch (Exception e) {
             log.error("序列化用户历史数据失败 (generateHistoricalReport), userId: {}", userId, e);
-            // 可以在这里回滚状态，或者让它保持“生成中”
-            targetRecord.setSuggestionHistoricalHealth("生成失败：数据处理错误");
-            this.updateById(targetRecord);
+            updateSuggestionField(targetRecordId, AiSuggestionsSpecific::setSuggestionHistoricalHealth, "生成失败：数据处理错误");
             throw new RuntimeException("序列化用户数据失败", e);
         }
         String prompt = bodynotePrompt.replace("{{user_data}}", dataJson);
 
-        // 3. 定义回调函数 (专门更新 historical health 字段)
-        Consumer<String> updateCallback = (finalReport) -> {
-            try {
-                log.info("收到历史健康报告回调, 准备更新记录 ID: {}, userId: {}", targetRecordId, userId);
-                // 重新获取记录以防缓存问题（虽然通常 updateById 应该够了）
-                AiSuggestionsSpecific recordToUpdate = this.getById(targetRecordId);
-                if (recordToUpdate != null) {
-                    recordToUpdate.setSuggestionHistoricalHealth(finalReport); // 更新实际报告内容
-                    // 可选：如果希望每次成功生成都更新时间戳
-                    // recordToUpdate.setGeneratedAt(LocalDateTime.now());
-                    boolean updated = this.updateById(recordToUpdate);
-                    if (updated) {
-                        log.info("成功更新历史健康报告, 记录 ID: {}, userId: {}", targetRecordId, userId);
-                    } else {
-                        log.warn("更新历史健康报告最终结果失败 (updateById 返回 false), 记录 ID: {}, userId: {}", targetRecordId, userId);
-                    }
-                } else {
-                    log.error("回调中无法找到要更新的历史健康报告记录, 记录 ID: {}, userId: {}", targetRecordId, userId);
-                }
-            } catch (Exception e) {
-                log.error("在历史健康报告回调中更新数据库时发生异常, 记录 ID: {}, userId: {}", targetRecordId, userId, e);
-                // 异常处理：可以尝试再次更新状态为失败
-                try {
-                    AiSuggestionsSpecific recordOnError = this.getById(targetRecordId);
-                    if (recordOnError != null) {
-                        recordOnError.setSuggestionHistoricalHealth("生成失败：回调处理错误");
-                        this.updateById(recordOnError);
-                    }
-                } catch (Exception ex) {
-                    log.error("尝试更新历史报告状态为失败时再次出错", ex);
-                }
-            }
-        };
+        Consumer<String> updateCallback = buildSuggestionUpdateCallback(
+                targetRecordId,
+                userId,
+                "历史健康报告",
+                AiSuggestionsSpecific::setSuggestionHistoricalHealth
+        );
 
         // 4. 调用 Controller 的方法，传递回调
         log.info("为用户 {} (记录ID: {}) 调用 AI 生成历史健康报告 (异步)...", userId, targetRecordId);
-        openAiController.getChatMessageStreamChinese(token, prompt, conversationId, updateCallback);
+        openAiController.streamReasoningChat(token, prompt, conversationId, updateCallback);
 
         // 5. 返回当前状态的目标记录（其中 historical health 字段是 "报告生成中...")
     }
 
     @Override
     public void generateCurrentReport(String token) {
-        User user = userTokenResolver.parseUser(token);
-        if (user == null || user.getId() == null) {
-            throw new IllegalArgumentException("认证失败，请重新登录。");
-        }
-        final Integer userId = user.getId();
+        final Integer userId = requireUserId(token);
         String conversationId = UUID.randomUUID().toString();
 
-        // 1. 获取或创建最新的记录
-        AiSuggestionsSpecific targetRecord = getOrCreateLatestSuggestionRecordForUpdate(userId);
-        final Integer targetRecordId = targetRecord.getId();
-
-        // 2. 立即更新目标记录的对应字段为“生成中”状态
-        log.info("用户 {} 准备生成当前健康报告, 更新记录 ID: {} 状态为生成中...", userId, targetRecordId);
-        targetRecord.setSuggestionCurrentHealth("报告生成中..."); // 设置占位符
-        // targetRecord.setGeneratedAt(LocalDateTime.now()); // 可选更新时间
-        boolean updatedPlaceholder = this.updateById(targetRecord);
-        if (!updatedPlaceholder) {
-            log.warn("用户 {} 更新记录 ID: {} 的当前健康报告为 '生成中...' 状态失败", userId, targetRecordId);
-        }
+        final Integer targetRecordId = prepareSuggestionRecord(
+                userId,
+                "当前健康报告",
+                "报告生成中...",
+                AiSuggestionsSpecific::setSuggestionCurrentHealth
+        );
 
 
         // 准备 AI 数据
         List<BodyNotes> notes = bodyNotesService.getLatestBodyNotesByUserId(userId);
         if (notes.isEmpty()) {
             log.warn("未找到用户 {} 的身体记录 (generateCurrentReport)", userId);
-            targetRecord.setSuggestionCurrentHealth("生成失败：无身体记录");
-            this.updateById(targetRecord);
-            // 返回当前状态，或者抛出异常，取决于业务逻辑
-            // throw new IllegalStateException("未找到身体记录, userId: " + userId);
+            updateSuggestionField(targetRecordId, AiSuggestionsSpecific::setSuggestionCurrentHealth, "生成失败：无身体记录");
             return; // 返回已标记失败的状态
         }
         BodyNotes record = notes.get(0);
         String recJson;
         try { recJson = objectMapper.writeValueAsString(record); } catch (Exception e) {
             log.error("序列化单条身体记录失败 (generateCurrentReport), userId: {}", userId, e);
-            targetRecord.setSuggestionCurrentHealth("生成失败：数据处理错误");
-            this.updateById(targetRecord);
+            updateSuggestionField(targetRecordId, AiSuggestionsSpecific::setSuggestionCurrentHealth, "生成失败：数据处理错误");
             throw new RuntimeException("序列化单条记录失败", e);
         }
         String prompt = singlePrompt.replace("{{record_data}}", recJson);
 
-        // 3. 定义回调 (专门更新 current health 字段)
-        Consumer<String> updateCallback = (finalReport) -> {
-            try {
-                log.info("收到当前健康报告回调, 准备更新记录 ID: {}, userId: {}", targetRecordId, userId);
-                AiSuggestionsSpecific recordToUpdate = this.getById(targetRecordId);
-                if (recordToUpdate != null) {
-                    recordToUpdate.setSuggestionCurrentHealth(finalReport); // 更新此字段
-                    // recordToUpdate.setGeneratedAt(LocalDateTime.now()); // 可选更新时间
-                    boolean updated = this.updateById(recordToUpdate);
-                    if (updated) {
-                        log.info("成功更新当前健康报告, 记录 ID: {}, userId: {}", targetRecordId, userId);
-                    } else {
-                        log.warn("更新当前健康报告最终结果失败 (updateById 返回 false), 记录 ID: {}, userId: {}", targetRecordId, userId);
-                    }
-                } else {
-                    log.error("回调中无法找到要更新的当前健康报告记录, 记录 ID: {}, userId: {}", targetRecordId, userId);
-                }
-            } catch (Exception e) {
-                log.error("在当前健康报告回调中更新数据库时发生异常, 记录 ID: {}, userId: {}", targetRecordId, userId, e);
-                try { // 尝试标记失败
-                    AiSuggestionsSpecific recordOnError = this.getById(targetRecordId);
-                    if (recordOnError != null) {
-                        recordOnError.setSuggestionCurrentHealth("生成失败：回调处理错误");
-                        this.updateById(recordOnError);
-                    }
-                } catch (Exception ex) {log.error("尝试更新当前报告状态为失败时再次出错", ex);}
-            }
-        };
+        Consumer<String> updateCallback = buildSuggestionUpdateCallback(
+                targetRecordId,
+                userId,
+                "当前健康报告",
+                AiSuggestionsSpecific::setSuggestionCurrentHealth
+        );
 
         // 4. 调用 Controller
         log.info("为用户 {} (记录ID: {}) 调用 AI 生成当前健康报告 (异步)...", userId, targetRecordId);
-        openAiController.getChatMessageStreamChinese(token, prompt, conversationId, updateCallback);
+        openAiController.streamReasoningChat(token, prompt, conversationId, updateCallback);
 
         // 5. 返回目标记录
     }
 
     @Override
     public void generateSportReport(String token) {
-        User user = userTokenResolver.parseUser(token);
-        if (user == null || user.getId() == null) {
-            throw new IllegalArgumentException("认证失败，请重新登录。");
-        }
-        final Integer userId = user.getId();
+        final Integer userId = requireUserId(token);
         String conversationId = UUID.randomUUID().toString();
 
-        // 1. 获取或创建最新的记录
-        AiSuggestionsSpecific targetRecord = getOrCreateLatestSuggestionRecordForUpdate(userId);
-        final Integer targetRecordId = targetRecord.getId();
-
-        // 2. 更新状态为“生成中”
-        log.info("用户 {} 准备生成运动建议报告, 更新记录 ID: {} 状态为生成中...", userId, targetRecordId);
-        targetRecord.setSuggestionSportInfo("报告生成中..."); // 占位符
-        // targetRecord.setGeneratedAt(LocalDateTime.now()); // 可选
-        boolean updatedPlaceholder = this.updateById(targetRecord);
-        if (!updatedPlaceholder) {
-            log.warn("用户 {} 更新记录 ID: {} 的运动建议报告为 '生成中...' 状态失败", userId, targetRecordId);
-        }
+        final Integer targetRecordId = prepareSuggestionRecord(
+                userId,
+                "运动建议报告",
+                "报告生成中...",
+                AiSuggestionsSpecific::setSuggestionSportInfo
+        );
 
 
         // 准备 AI 数据
         List<BodyNotes> notes = bodyNotesService.getLatestBodyNotesByUserId(userId);
         if (notes.isEmpty()) {
             log.warn("未找到用户 {} 的身体记录 (generateSportReport)", userId);
-            targetRecord.setSuggestionSportInfo("生成失败：无身体记录");
-            this.updateById(targetRecord);
+            updateSuggestionField(targetRecordId, AiSuggestionsSpecific::setSuggestionSportInfo, "生成失败：无身体记录");
             return;
         }
         BodyNotes record = notes.get(0);
         String bodyJson;
         try { bodyJson = objectMapper.writeValueAsString(record); } catch (Exception e) {
             log.error("序列化身体数据失败 (for sport), userId: {}", userId, e);
-            targetRecord.setSuggestionSportInfo("生成失败：身体数据处理错误");
-            this.updateById(targetRecord);
+            updateSuggestionField(targetRecordId, AiSuggestionsSpecific::setSuggestionSportInfo, "生成失败：身体数据处理错误");
             throw new RuntimeException("序列化数据失败", e);
         }
         String sportJson;
         try { sportJson = objectMapper.writeValueAsString(sportInfoService.list()); } catch (JsonProcessingException e) {
             log.error("序列化运动信息失败 (for sport), userId: {}", userId, e);
-            targetRecord.setSuggestionSportInfo("生成失败：运动信息处理错误");
-            this.updateById(targetRecord);
+            updateSuggestionField(targetRecordId, AiSuggestionsSpecific::setSuggestionSportInfo, "生成失败：运动信息处理错误");
             throw new RuntimeException("序列化运动信息失败", e);
         }
         String prompt = sportPrompt.replace("{{body_data}}", bodyJson).replace("{{sport_infos}}", sportJson);
 
 
-        // 3. 定义回调 (专门更新 sport info 字段)
-        Consumer<String> updateCallback = (finalReport) -> {
-            try {
-                log.info("收到运动建议报告回调, 准备更新记录 ID: {}, userId: {}", targetRecordId, userId);
-                AiSuggestionsSpecific recordToUpdate = this.getById(targetRecordId);
-                if (recordToUpdate != null) {
-                    recordToUpdate.setSuggestionSportInfo(finalReport); // 更新此字段
-                    // recordToUpdate.setGeneratedAt(LocalDateTime.now()); // 可选
-                    boolean updated = this.updateById(recordToUpdate);
-                    if (updated) {
-                        log.info("成功更新运动建议报告, 记录 ID: {}, userId: {}", targetRecordId, userId);
-                    } else {
-                        log.warn("更新运动建议报告最终结果失败 (updateById 返回 false), 记录 ID: {}, userId: {}", targetRecordId, userId);
-                    }
-                } else {
-                    log.error("回调中无法找到要更新的运动建议报告记录, 记录 ID: {}, userId: {}", targetRecordId, userId);
-                }
-            } catch (Exception e) {
-                log.error("在运动建议报告回调中更新数据库时发生异常, 记录 ID: {}, userId: {}", targetRecordId, userId, e);
-                try { // 尝试标记失败
-                    AiSuggestionsSpecific recordOnError = this.getById(targetRecordId);
-                    if (recordOnError != null) {
-                        recordOnError.setSuggestionSportInfo("生成失败：回调处理错误");
-                        this.updateById(recordOnError);
-                    }
-                } catch (Exception ex) {log.error("尝试更新运动报告状态为失败时再次出错", ex);}
-            }
-        };
+        Consumer<String> updateCallback = buildSuggestionUpdateCallback(
+                targetRecordId,
+                userId,
+                "运动建议报告",
+                AiSuggestionsSpecific::setSuggestionSportInfo
+        );
 
         // 4. 调用 Controller
         log.info("为用户 {} (记录ID: {}) 调用 AI 生成运动建议报告 (异步)...", userId, targetRecordId);
-        openAiController.getChatMessageStreamChinese(token, prompt, conversationId, updateCallback);
+        openAiController.streamReasoningChat(token, prompt, conversationId, updateCallback);
 
         // 5. 返回目标记录
     }
@@ -362,17 +251,13 @@ public class AiSuggestionsSpecificServiceImpl extends ServiceImpl<AiSuggestionsS
     @Override
     public SseEmitter analyzeSportSuggestion(String token, String conversationId) {
         // ... (代码不变) ...
-        User user = userTokenResolver.parseUser(token);
-        if (user == null || user.getId() == null) {
-            throw new IllegalArgumentException("认证失败，请重新登录。");
-        }
-        Integer userId = user.getId(); // 用于日志记录
+        Integer userId = requireUserId(token);
         if (conversationId == null || conversationId.isEmpty()) {
             conversationId = UUID.randomUUID().toString();
             log.info("analyzeSportSuggestion: 为用户 {} 生成新会话 ID: {}", userId, conversationId);
             // 注意：这里没有发送 conversationId 给客户端，如果需要，需要额外处理
         }
-        List<BodyNotes> notes = bodyNotesService.getLatestBodyNotesByUserId(user.getId());
+        List<BodyNotes> notes = bodyNotesService.getLatestBodyNotesByUserId(userId);
         if (notes.isEmpty()) {
             throw new IllegalStateException("未找到身体记录, userId: " + userId);
         }
@@ -395,7 +280,69 @@ public class AiSuggestionsSpecificServiceImpl extends ServiceImpl<AiSuggestionsS
 
         log.info("analyzeSportSuggestion: 为用户 {} 调用 AI 进行运动建议分析 (流式)...", userId);
         // 调用 Controller，但不传递回调，因为此方法目的是返回 Emitter 给前端
-        return openAiController.getChatMessageStreamChinese(token, prompt, conversationId, null);
+        return openAiController.streamReasoningChat(token, prompt, conversationId, null);
+    }
+
+    private Integer requireUserId(String token) {
+        User user = userTokenResolver.parseUser(token);
+        if (user == null || user.getId() == null) {
+            throw new IllegalArgumentException("认证失败，请重新登录。");
+        }
+        return user.getId();
+    }
+
+    private Integer prepareSuggestionRecord(Integer userId,
+                                            String reportName,
+                                            String placeholder,
+                                            BiConsumer<AiSuggestionsSpecific, String> fieldSetter) {
+        AiSuggestionsSpecific targetRecord = getOrCreateLatestSuggestionRecordForUpdate(userId);
+        Integer targetRecordId = targetRecord.getId();
+        log.info("用户 {} 准备生成{}, 更新记录 ID: {} 状态为生成中...", userId, reportName, targetRecordId);
+        fieldSetter.accept(targetRecord, placeholder);
+        if (!this.updateById(targetRecord)) {
+            log.warn("用户 {} 更新记录 ID: {} 的{}为 '{}' 状态失败", userId, targetRecordId, reportName, placeholder);
+        }
+        return targetRecordId;
+    }
+
+    private Consumer<String> buildSuggestionUpdateCallback(Integer targetRecordId,
+                                                           Integer userId,
+                                                           String reportName,
+                                                           BiConsumer<AiSuggestionsSpecific, String> fieldSetter) {
+        return finalReport -> {
+            try {
+                log.info("收到{}回调, 准备更新记录 ID: {}, userId: {}", reportName, targetRecordId, userId);
+                AiSuggestionsSpecific recordToUpdate = this.getById(targetRecordId);
+                if (recordToUpdate == null) {
+                    log.error("回调中无法找到要更新的{}记录, 记录 ID: {}, userId: {}", reportName, targetRecordId, userId);
+                    return;
+                }
+                fieldSetter.accept(recordToUpdate, finalReport);
+                if (this.updateById(recordToUpdate)) {
+                    log.info("成功更新{}, 记录 ID: {}, userId: {}", reportName, targetRecordId, userId);
+                } else {
+                    log.warn("更新{}最终结果失败 (updateById 返回 false), 记录 ID: {}, userId: {}", reportName, targetRecordId, userId);
+                }
+            } catch (Exception e) {
+                log.error("在{}回调中更新数据库时发生异常, 记录 ID: {}, userId: {}", reportName, targetRecordId, userId, e);
+                try {
+                    updateSuggestionField(targetRecordId, fieldSetter, "生成失败：回调处理错误");
+                } catch (Exception ex) {
+                    log.error("尝试更新{}状态为失败时再次出错", reportName, ex);
+                }
+            }
+        };
+    }
+
+    private void updateSuggestionField(Integer recordId,
+                                       BiConsumer<AiSuggestionsSpecific, String> fieldSetter,
+                                       String value) {
+        AiSuggestionsSpecific record = this.getById(recordId);
+        if (record == null) {
+            return;
+        }
+        fieldSetter.accept(record, value);
+        this.updateById(record);
     }
 
 }
