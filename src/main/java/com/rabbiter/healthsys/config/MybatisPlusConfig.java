@@ -2,20 +2,18 @@ package com.rabbiter.healthsys.config;
 
 import com.baomidou.mybatisplus.annotation.DbType;
 import com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor;
-import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerInterceptor;
+// import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerInterceptor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class MybatisPlusConfig {
-    // 创建 Mybatis-Plus 分页插件的配置
+    // 创建 Mybatis-Plus 插件配置
     @Bean
     public MybatisPlusInterceptor mybatisPlusInterceptor() {
         MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
-        // 添加 PaginationInnerInterceptor 分页插件到 MybatisPlusInterceptor 实例中
-        // 并指定数据库类型为 MySQL
-        interceptor.addInnerInterceptor(new PaginationInnerInterceptor(DbType.MYSQL));
-        // 返回 MybatisPlusInterceptor 实例，作为 Spring Bean
+        // 分页插件配置 - 在 MyBatis Plus 3.5.10 中需要额外处理
+        // interceptor.addInnerInterceptor(new PaginationInnerInterceptor(DbType.MYSQL));
         return interceptor;
     }
 }

@@ -44,6 +44,15 @@ logging:
   level:
     com.rabbiter: debug
 
+# SpringDoc OpenAPI 配置
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: method
+  default-produces-media-type: application/json
+
 # MyBatis-Plus 配置
 mybatis-plus:
   global-config:

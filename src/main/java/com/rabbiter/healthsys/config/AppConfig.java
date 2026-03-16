@@ -1,6 +1,5 @@
 package com.rabbiter.healthsys.config;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.client.RestTemplate;
@@ -18,14 +17,5 @@ public class AppConfig {
     @Bean
     public RestTemplate restTemplate() {
         return new RestTemplate();
-    }
-
-    /**
-     * 定义 ObjectMapper Bean，用于 JSON 序列化和反序列化。
-     * @return ObjectMapper 实例
-     */
-    @Bean
-    public ObjectMapper objectMapper() {
-        return new ObjectMapper();
     }
 } 
