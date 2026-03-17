@@ -13,6 +13,7 @@ import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
@@ -104,22 +105,23 @@ public class OpenAiController {
             @RequestPart(value = "conversationId", required = false) String conversationIdParam,
             HttpServletRequest request
     ) {
-        return streamChat(token, messageParam, file, conversationIdParam, request, true, true, null, defaultChatModel);
+        return streamChat(token, new ChatStreamRequest(
+                messageParam,
+                file,
+                conversationIdParam,
+                request,
+                true,
+                true,
+                null,
+                defaultChatModel
+        ));
     }
 
-    public SseEmitter streamChat(String token,
-                                 String messageParam,
-                                 @Nullable MultipartFile file,
-                                 @Nullable String conversationIdParam,
-                                 @Nullable HttpServletRequest request,
-                                 boolean loadHistory,
-                                 boolean persistHistory,
-                                 @Nullable Consumer<String> onCompleteCallback,
-                                 String model) {
+    private SseEmitter streamChat(String token, ChatStreamRequest chatRequest) {
         SseEmitter emitter = new SseEmitter(3600000L);
 
-        String message = messageParam;
-        String conversationIdStr = conversationIdParam;
+        String message = chatRequest.message();
+        String conversationIdStr = chatRequest.conversationId();
 
         final Integer userId;
         try {
@@ -147,9 +149,9 @@ public class OpenAiController {
 
         final String finalConversationId = currentConversationId;
         final String streamKey = buildStreamKey(userId, finalConversationId);
-        final String backendBaseUrl = request != null
-                ? ServletUriComponentsBuilder.fromRequestUri(request)
-                .replacePath(request.getContextPath())
+        final String backendBaseUrl = chatRequest.request() != null
+                ? ServletUriComponentsBuilder.fromRequestUri(chatRequest.request())
+                .replacePath(chatRequest.request().getContextPath())
                 .replaceQuery(null)
                 .build()
                 .toUriString()
@@ -166,12 +168,18 @@ public class OpenAiController {
             }
 
             try {
-                String processedMessage = file != null && request != null
-                        ? processUploadedImage(file, message, userId, finalConversationId, backendBaseUrl, emitter)
+                String processedMessage = chatRequest.file() != null && chatRequest.request() != null
+                        ? processUploadedImage(chatRequest.file(), message, userId, finalConversationId, backendBaseUrl, emitter)
                         : message;
 
-                List<Message> messages = buildStreamMessages(userId, finalConversationId, processedMessage, loadHistory, persistHistory);
-                Prompt prompt = new Prompt(messages);
+                List<Message> messages = buildStreamMessages(
+                        userId,
+                        finalConversationId,
+                        processedMessage,
+                        chatRequest.loadHistory(),
+                        chatRequest.persistHistory()
+                );
+                Prompt prompt = new Prompt(messages, OpenAiChatOptions.builder().model(chatRequest.model()).build());
 
                 StringBuilder fullResponse = new StringBuilder();
 
@@ -202,7 +210,13 @@ public class OpenAiController {
                     .doOnComplete(() -> {
                         log.info("/chatStream: AI 流连接已关闭。用户 ID: {}, 会话 ID: {}", userId, finalConversationId);
                         String responseText = fullResponse.toString();
-                        handleAssistantResponse(userId, finalConversationId, persistHistory, onCompleteCallback, responseText);
+                        handleAssistantResponse(
+                                userId,
+                                finalConversationId,
+                                chatRequest.persistHistory(),
+                                chatRequest.onCompleteCallback(),
+                                responseText
+                        );
                         emitter.complete();
                         cleanupActiveStream(streamKey, activeStream);
                     })
@@ -224,7 +238,16 @@ public class OpenAiController {
                                           String messageParam,
                                           @Nullable String conversationIdParam,
                                           @Nullable Consumer<String> onCompleteCallback) {
-        return streamChat(token, messageParam, null, conversationIdParam, null, false, false, onCompleteCallback, chineseChatModel);
+        return streamChat(token, new ChatStreamRequest(
+                messageParam,
+                null,
+                conversationIdParam,
+                null,
+                false,
+                false,
+                onCompleteCallback,
+                chineseChatModel
+        ));
     }
 
     @GetMapping("/image-detection/result/{fileName:.+}")
@@ -595,6 +618,18 @@ public class OpenAiController {
             } catch (Exception ignored) {
             }
         }
+    }
+
+    private record ChatStreamRequest(
+            String message,
+            @Nullable MultipartFile file,
+            @Nullable String conversationId,
+            @Nullable HttpServletRequest request,
+            boolean loadHistory,
+            boolean persistHistory,
+            @Nullable Consumer<String> onCompleteCallback,
+            String model
+    ) {
     }
 
     /**
