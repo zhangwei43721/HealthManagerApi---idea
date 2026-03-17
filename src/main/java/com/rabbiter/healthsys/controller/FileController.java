@@ -15,6 +15,7 @@ import java.util.Map;
 /**
  * 文件上传控制器
  * 处理文件上传相关操作 (用户头像上传需要 Token 认证)
+ * 
  * @author shuhaoran，yaoyang
  * @since 2025/4/26 16:04
  */
@@ -37,6 +38,7 @@ public class FileController {
     // --- Token 验证辅助方法 (仿照 AiSuggestionsSpecificController) ---
     /**
      * 私有辅助方法：验证 Token 并获取用户信息
+     * 
      * @param token 从请求头 X-Token 获取的令牌
      * @return 验证通过则返回 User 对象，否则返回 null
      */
@@ -63,8 +65,10 @@ public class FileController {
 
     /**
      * 获取文件扩展名（包含点），如果文件名无效或没有有效扩展名，则返回空字符串
-     * 例如："image.jpg" -> ".jpg", "archive.tar.gz" -> ".gz", "myfile" -> "", ".gitignore" -> ""
+     * 例如："image.jpg" -> ".jpg", "archive.tar.gz" -> ".gz", "myfile" -> "",
+     * ".gitignore" -> ""
      * 这里的逻辑是查找最后一个点，并确保它不是文件名的第一个或最后一个字符。
+     * 
      * @param file MultipartFile 对象
      * @return 小写的文件扩展名（包含点），或空字符串
      */
@@ -85,6 +89,7 @@ public class FileController {
     /**
      * 验证文件（通用逻辑）
      * 检查文件是否为空、大小是否超限、扩展名是否合法
+     * 
      * @param file 要验证的文件
      * @return 如果验证失败，返回包含错误信息的 Unification 对象；如果验证成功，返回 null
      */
@@ -113,11 +118,11 @@ public class FileController {
         return null;
     }
 
-
     // --- API 端点 ---
 
     /**
      * 新增：上传文件到 Cloudflare R2 (通用，无需认证，具体认证逻辑可在 FileService 实现)
+     * 
      * @param file 文件
      * @return 上传结果
      */
@@ -136,6 +141,7 @@ public class FileController {
     /**
      * 上传通用头像 (无需认证) -> 修改为上传到 R2
      * 调用通用验证和保存逻辑
+     * 
      * @param file 文件
      * @return 上传结果
      */
@@ -154,7 +160,8 @@ public class FileController {
     /**
      * 用户专用的头像上传方法 (需要 Token 认证) -> 修改为上传到 R2
      * 调用通用验证和保存逻辑，并更新用户信息
-     * @param file 头像文件
+     * 
+     * @param file  头像文件
      * @param token 用户认证 Token (从 Header X-Token 获取)
      * @return 上传结果
      */

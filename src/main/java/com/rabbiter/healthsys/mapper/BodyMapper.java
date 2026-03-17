@@ -12,4 +12,3 @@ public interface BodyMapper extends BaseMapper<Body> {
     List<Body> getBodyListByUserId(@Param("pid") Integer pid);
 
 }
-

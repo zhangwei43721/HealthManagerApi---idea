@@ -8,4 +8,3 @@ import java.util.List;
 public interface DetailMapper extends BaseMapper<Detail> {
     List<Detail> getDetailInfo(String sportName);
 }
-

@@ -25,13 +25,11 @@ public class DetailServiceImpl extends ServiceImpl<DetailMapper, Detail> impleme
 
     private final DetailMapper detailMapper;
 
-
     @Override
     public List<Detail> getDetailInfo(String sportName) {
 
         return detailMapper.getDetailInfo(sportName);
     }
-
 
     @Transactional
     @Override
@@ -47,7 +45,6 @@ public class DetailServiceImpl extends ServiceImpl<DetailMapper, Detail> impleme
             return false;
         }
     }
-
 
     @Override
     public void updateDetail(Detail detail) {
@@ -66,5 +63,3 @@ public class DetailServiceImpl extends ServiceImpl<DetailMapper, Detail> impleme
         this.baseMapper.deleteById(id);
     }
 }
-
-

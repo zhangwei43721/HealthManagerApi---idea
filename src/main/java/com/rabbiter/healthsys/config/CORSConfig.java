@@ -22,5 +22,3 @@ public class CORSConfig implements WebMvcConfigurer {
                 .maxAge(3600);
     }
 }
-
-

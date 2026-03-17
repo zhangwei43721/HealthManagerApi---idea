@@ -12,10 +12,11 @@ public class AppConfig {
 
     /**
      * 定义 RestTemplate Bean，用于发送 HTTP 请求。
+     * 
      * @return RestTemplate 实例
      */
     @Bean
     public RestTemplate restTemplate() {
         return new RestTemplate();
     }
-} 
+}

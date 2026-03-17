@@ -34,6 +34,7 @@ public class AiSuggestionsSpecificController {
 
     /**
      * 私有辅助方法：验证 Token 并获取用户信息
+     * 
      * @param token 从请求头 X-Token 获取的令牌
      * @return 验证通过则返回 User 对象，否则返回 null
      */
@@ -57,8 +58,9 @@ public class AiSuggestionsSpecificController {
 
     /**
      * 分页查询当前认证用户的建议列表 (按时间降序, 需要认证)
-     * @param token 用户认证 Token (从 Header X-Token 获取)
-     * @param pageNo 当前页码
+     * 
+     * @param token    用户认证 Token (从 Header X-Token 获取)
+     * @param pageNo   当前页码
      * @param pageSize 每页数量
      * @return 分页结果 (包含 total 和 rows)
      */
@@ -91,11 +93,12 @@ public class AiSuggestionsSpecificController {
 
     /**
      * 获取当前认证用户的历史健康建议
+     * 
      * @param token 用户认证 Token (从 Header X-Token 获取)
      * @return 历史健康建议
      */
     @GetMapping("/historical")
-    public Unification<Map<String,Object>> getHistoricalSuggestion(@RequestHeader("X-Token") String token) {
+    public Unification<Map<String, Object>> getHistoricalSuggestion(@RequestHeader("X-Token") String token) {
         User user = validateTokenAndGetUser(token);
         if (user == null) {
             return Unification.fail("认证失败，请检查Token或重新登录。");
@@ -105,17 +108,17 @@ public class AiSuggestionsSpecificController {
                 user.getId(),
                 "未找到历史健康建议",
                 latestSuggestion != null ? latestSuggestion.getSuggestionHistoricalHealth() : null,
-                latestSuggestion
-        );
+                latestSuggestion);
     }
 
     /**
      * 获取当前认证用户的当前健康建议
+     * 
      * @param token 用户认证 Token (从 Header X-Token 获取)
      * @return 当前健康建议
      */
     @GetMapping("/current")
-    public Unification<Map<String,Object>> getCurrentSuggestion(@RequestHeader("X-Token") String token) {
+    public Unification<Map<String, Object>> getCurrentSuggestion(@RequestHeader("X-Token") String token) {
         User user = validateTokenAndGetUser(token);
         if (user == null) {
             return Unification.fail("认证失败，请检查Token或重新登录。");
@@ -125,17 +128,17 @@ public class AiSuggestionsSpecificController {
                 user.getId(),
                 "未找到当前健康建议",
                 latestSuggestion != null ? latestSuggestion.getSuggestionCurrentHealth() : null,
-                latestSuggestion
-        );
+                latestSuggestion);
     }
 
     /**
      * 获取当前认证用户的运动信息建议
+     * 
      * @param token 用户认证 Token (从 Header X-Token 获取)
      * @return 运动信息建议
      */
     @GetMapping("/sport")
-    public Unification<Map<String,Object>> getSportSuggestion(@RequestHeader("X-Token") String token) {
+    public Unification<Map<String, Object>> getSportSuggestion(@RequestHeader("X-Token") String token) {
         User user = validateTokenAndGetUser(token);
         if (user == null) {
             return Unification.fail("认证失败，请检查Token或重新登录。");
@@ -145,13 +148,13 @@ public class AiSuggestionsSpecificController {
                 user.getId(),
                 "未找到运动信息建议",
                 latestSuggestion != null ? latestSuggestion.getSuggestionSportInfo() : null,
-                latestSuggestion
-        );
+                latestSuggestion);
     }
 
     /**
      * AI 流式获取运动信息建议
-     * @param token 用户认证 Token
+     * 
+     * @param token          用户认证 Token
      * @param conversationId 会话 ID
      * @return SSE 实时流
      */
@@ -174,9 +177,9 @@ public class AiSuggestionsSpecificController {
     }
 
     private Unification<Map<String, Object>> buildSuggestionResponse(Integer userId,
-                                                                     String emptyMessage,
-                                                                     String suggestion,
-                                                                     AiSuggestionsSpecific latestSuggestion) {
+            String emptyMessage,
+            String suggestion,
+            AiSuggestionsSpecific latestSuggestion) {
         if (latestSuggestion == null) {
             log.info("用户 {} 未找到建议记录: {}", userId, emptyMessage);
             return Unification.fail(emptyMessage);

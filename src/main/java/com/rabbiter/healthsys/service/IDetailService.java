@@ -5,7 +5,6 @@ import com.rabbiter.healthsys.entity.Detail;
 
 import java.util.List;
 
-
 public interface IDetailService extends IService<Detail> {
     List<Detail> getDetailInfo(String sportName);
 
@@ -17,6 +16,3 @@ public interface IDetailService extends IService<Detail> {
 
     boolean addDetail(Detail detail);
 }
-
-
-

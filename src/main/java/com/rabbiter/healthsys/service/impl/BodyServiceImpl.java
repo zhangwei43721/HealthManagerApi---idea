@@ -24,7 +24,6 @@ public class BodyServiceImpl extends ServiceImpl<BodyMapper, Body> implements IB
 
     private final BodyMapper bodyMapper;
 
-
     @Override
     public boolean insert(Body body) {
         LambdaQueryWrapper<Body> wrapper = new LambdaQueryWrapper<>();
@@ -41,18 +40,15 @@ public class BodyServiceImpl extends ServiceImpl<BodyMapper, Body> implements IB
         }
     }
 
-
     @Override
     public void update(Body body) {
         this.baseMapper.updateById(body);
     }
 
-
     @Override
     public List<Body> getBodyListByUserId(Integer pid) {
         return bodyMapper.getBodyListByUserId(pid);
     }
-
 
     @Override
     public Body getBodyById(Integer id) {
@@ -68,9 +64,7 @@ public class BodyServiceImpl extends ServiceImpl<BodyMapper, Body> implements IB
     public void deletBodyById(Integer id) {
         // 直接删除指定主键的记录
         this.baseMapper.deleteById(id);
-        //删除BodyNotes表中与
+        // 删除BodyNotes表中与
     }
 
-
 }
-

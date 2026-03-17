@@ -44,12 +44,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
     private final IBodyService bodyMapper;
     private User loginUser = null;
 
-
     @Override
     public Map<String, Object> login(User user) {
         return authenticate(user);
     }
-
 
     @Override
     public Map<String, Object> Wxlogin(User user) {
@@ -68,14 +66,13 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
             // 将用户密码设置为 null，避免密码泄露
             loginUser.setPassword(null);
 
-            String token = userTokenResolver.createToken(loginUser); //创建 Token
+            String token = userTokenResolver.createToken(loginUser); // 创建 Token
             Map<String, Object> data = new HashMap<>();
             data.put("token", token);
             return data;
         }
         return null;
     }
-
 
     @Override
     public Map<String, Object> getUserInfo(String token) {
@@ -104,7 +101,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         }
         return null;
     }
-
 
     @Override
     public void logout(String token) {
@@ -162,7 +158,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         return users;
     }
 
-
     @Override
     @Transactional
     public void updateUser(User user) {
@@ -170,7 +165,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         this.baseMapper.updateById(user);
         replaceUserRoles(user.getId(), user.getRoleIdList());
     }
-
 
     @Override
     public void deletUserById(Integer id) {
@@ -181,7 +175,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         wrapper.eq(UserRole::getUserId, id); // 查询条件：用户ID等于id
         userRoleMapper.delete(wrapper); // 执行删除操作
     }
-
 
     @Override
     public Map<String, Object> register(User user) {
@@ -214,7 +207,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         }
     }
 
-
     @Override
     public Map<String, Object> getUserId() {
         Map<String, Object> data = new HashMap<>();
@@ -225,7 +217,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         }
         return null;
     }
-
 
     @Override
     public Map<String, Object> WxgetUserId(String token) {
@@ -245,7 +236,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         }
         return null;
     }
-
 
     @Override
     public Map<String, Object> getBodyInfo(Integer userId) {
@@ -276,7 +266,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
 
     /**
      * 更新用户头像
-     * @param userId 用户ID
+     * 
+     * @param userId    用户ID
      * @param avatarUrl 头像URL
      * @return 是否更新成功
      */
@@ -288,14 +279,14 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
             log.error("用户不存在，无法更新头像, userId: {}", userId);
             return false;
         }
-        
+
         // 日志输出当前头像和新头像
         log.info("更新用户头像: userId={}, 原头像={}, 新头像={}", userId, user.getAvatar(), avatarUrl);
-        
+
         // 更新用户头像
         user.setAvatar(avatarUrl);
         int result = this.baseMapper.updateById(user);
-        
+
         if (result > 0) {
             log.info("用户头像更新成功: userId={}", userId);
             return true;
@@ -314,8 +305,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         }
         return userRoleList.stream().collect(Collectors.groupingBy(
                 UserRole::getUserId,
-                Collectors.mapping(UserRole::getRoleId, Collectors.toList())
-        ));
+                Collectors.mapping(UserRole::getRoleId, Collectors.toList())));
     }
 
     private void replaceUserRoles(Integer userId, List<Integer> roleIdList) {

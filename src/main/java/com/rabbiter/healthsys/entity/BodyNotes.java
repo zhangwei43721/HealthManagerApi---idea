@@ -59,6 +59,4 @@ public class BodyNotes implements Serializable {
     @TableField("Date")
     private Date Date;
 
-
 }
-

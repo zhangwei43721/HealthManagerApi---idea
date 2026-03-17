@@ -65,8 +65,8 @@ public class BodyNotesServiceImpl extends ServiceImpl<BodyNotesMapper, BodyNotes
     public List<BodyNotes> getLatestBodyNotesByUserId(Integer userId) {
         LambdaQueryWrapper<BodyNotes> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(BodyNotes::getId, userId)
-               .orderByDesc(BodyNotes::getDate)
-               .last("LIMIT 5");
+                .orderByDesc(BodyNotes::getDate)
+                .last("LIMIT 5");
         return this.baseMapper.selectList(wrapper);
     }
 }

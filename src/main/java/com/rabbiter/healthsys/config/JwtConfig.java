@@ -15,7 +15,7 @@ import java.util.UUID;
 @Component
 public class JwtConfig {
     // 有效期
-    private static final long JWT_EXPIRE = 60 * 180 * 1000L;  //1小时
+    private static final long JWT_EXPIRE = 60 * 180 * 1000L; // 1小时
     // 令牌秘钥 (应该使用足够长的密钥，HS256需要至少256位)
     private static final String JWT_KEY = "12345678901234567890123456789012"; // 32字节密钥
 

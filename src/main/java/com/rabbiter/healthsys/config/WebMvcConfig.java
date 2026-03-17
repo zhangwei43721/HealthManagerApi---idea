@@ -20,6 +20,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
 
     /**
      * 添加资源处理器，配置静态资源映射
+     * 
      * @param registry 资源处理器注册表
      */
     @Override
@@ -34,16 +35,18 @@ public class WebMvcConfig implements WebMvcConfigurer {
         registry.addResourceHandler("/**")
                 .addResourceLocations("classpath:/static/");
     }
-    
+
     /**
      * 添加拦截器，确保所有请求参数以UTF-8编码处理
+     * 
      * @param registry 拦截器注册表
      */
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(new HandlerInterceptor() {
             @Override
-            public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+            public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler)
+                    throws Exception {
                 try {
                     request.setCharacterEncoding("UTF-8");
                     response.setCharacterEncoding("UTF-8");
@@ -54,4 +57,4 @@ public class WebMvcConfig implements WebMvcConfigurer {
             }
         }).addPathPatterns("/**"); // 拦截所有请求
     }
-} 
+}

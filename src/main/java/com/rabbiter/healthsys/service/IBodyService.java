@@ -5,7 +5,6 @@ import com.rabbiter.healthsys.entity.Body;
 
 import java.util.List;
 
-
 public interface IBodyService extends IService<Body> {
 
     boolean insert(Body body);

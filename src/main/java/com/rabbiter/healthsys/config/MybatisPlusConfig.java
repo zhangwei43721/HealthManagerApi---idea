@@ -13,7 +13,8 @@ public class MybatisPlusConfig {
     public MybatisPlusInterceptor mybatisPlusInterceptor() {
         MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
         // 分页插件配置 - 在 MyBatis Plus 3.5.10 中需要额外处理
-        // interceptor.addInnerInterceptor(new PaginationInnerInterceptor(DbType.MYSQL));
+        // interceptor.addInnerInterceptor(new
+        // PaginationInnerInterceptor(DbType.MYSQL));
         return interceptor;
     }
 }

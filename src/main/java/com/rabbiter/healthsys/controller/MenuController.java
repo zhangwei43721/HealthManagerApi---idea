@@ -37,4 +37,3 @@ public class MenuController {
         return Unification.success(menuList);
     }
 }
-

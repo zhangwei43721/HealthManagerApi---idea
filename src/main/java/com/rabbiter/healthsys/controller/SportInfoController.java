@@ -27,11 +27,10 @@ public class SportInfoController {
 
     private final ISportInfoService sportInfoService;
 
-
-    //获取所有运动知识
+    // 获取所有运动知识
     @GetMapping("/getAllSportInfo")
     public Unification<Map<String, Object>> getAllSportInfo(@RequestParam("pageNo") Long pageNo,
-                                                          @RequestParam("pageSize") Long pageSize) {
+            @RequestParam("pageSize") Long pageSize) {
         Page<SportInfo> page = new Page<>(pageNo, pageSize);
         sportInfoService.page(page, null);
         Map<String, Object> data = new HashMap<>();
@@ -40,11 +39,11 @@ public class SportInfoController {
         return Unification.success(data);
     }
 
-
     @GetMapping("/getSportList")
-    public Unification<Map<String, Object>> getSportList(@RequestParam(value = "sportType", required = false) String sportType,
-                                                         @RequestParam("pageNo") Long pageNo,
-                                                         @RequestParam("pageSize") Long pageSize) {
+    public Unification<Map<String, Object>> getSportList(
+            @RequestParam(value = "sportType", required = false) String sportType,
+            @RequestParam("pageNo") Long pageNo,
+            @RequestParam("pageSize") Long pageSize) {
 
         LambdaQueryWrapper<SportInfo> wrapper = new LambdaQueryWrapper<>(); // 构建查询条件
         wrapper.eq(StringUtils.hasLength(sportType), SportInfo::getSportType, sportType); // 如果sportType参数不为空，则添加运动类型查询条件
@@ -58,7 +57,6 @@ public class SportInfoController {
         return Unification.success(data); // 返回成功响应和响应数据
     }
 
-
     @PostMapping("/add")
     public Unification<?> addSport(@RequestBody SportInfo sport) {
         boolean isSuccess = sportInfoService.addSport(sport);
@@ -69,13 +67,11 @@ public class SportInfoController {
         }
     }
 
-
     @PutMapping("/update")
     public Unification<?> updateSport(@RequestBody SportInfo sport) {
         sportInfoService.updateSport(sport);
         return Unification.success("修改成功");
     }
-
 
     @GetMapping("/{id}")
     public Unification<SportInfo> getSportById(@PathVariable("id") Integer id) {
@@ -85,13 +81,10 @@ public class SportInfoController {
         return Unification.success(sportInfo);
     }
 
-
     @DeleteMapping("/{id}")
     public Unification<SportInfo> deletSportById(@PathVariable("id") Integer id) {
         sportInfoService.deletUserById(id);
         return Unification.success("删除成功");
     }
 
-
 }
-

@@ -24,7 +24,6 @@ public class SportInfoServiceImpl extends ServiceImpl<SportInfoMapper, SportInfo
 
     private final SportInfoMapper sportInfoMapper;
 
-
     @Override
     public List<SportInfo> getAllSportInfos() {
         return sportInfoMapper.selectList(null);
@@ -45,7 +44,6 @@ public class SportInfoServiceImpl extends ServiceImpl<SportInfoMapper, SportInfo
         }
     }
 
-
     @Override
     public void updateSport(SportInfo sport) {
         this.baseMapper.updateById(sport);
@@ -63,4 +61,3 @@ public class SportInfoServiceImpl extends ServiceImpl<SportInfoMapper, SportInfo
     }
 
 }
-

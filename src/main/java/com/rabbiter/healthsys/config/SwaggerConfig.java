@@ -9,16 +9,14 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class SwaggerConfig {
 
-    @Bean
-    public OpenAPI customOpenAPI() {
-        return new OpenAPI()
-                .info(new Info()
-                        .title("个人健康管理系统接口文档")
-                        .description("个人健康管理系统")
-                        .version("1.0")
-                        .contact(new Contact()
-                                .name("Skyforever")
-                        )
-                );
-    }
+        @Bean
+        public OpenAPI customOpenAPI() {
+                return new OpenAPI()
+                                .info(new Info()
+                                                .title("个人健康管理系统接口文档")
+                                                .description("个人健康管理系统")
+                                                .version("1.0")
+                                                .contact(new Contact()
+                                                                .name("Skyforever")));
+        }
 }

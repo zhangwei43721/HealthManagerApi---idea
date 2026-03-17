@@ -2,12 +2,10 @@ package com.rabbiter.healthsys.common;
 
 //主要用于统一返回结果格式。
 
-
 public class Unification<T> {
     private Integer code;
     private String message;
     private T data;
-
 
     public Unification() {
     }

@@ -5,5 +5,4 @@ import com.rabbiter.healthsys.entity.SportInfo;
 
 public interface SportInfoMapper extends BaseMapper<SportInfo> {
 
-
 }

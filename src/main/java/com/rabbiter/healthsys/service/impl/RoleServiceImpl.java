@@ -80,7 +80,6 @@ public class RoleServiceImpl extends ServiceImpl<RoleMapper, Role> implements IR
         }
     }
 
-
     @Override
     @Transactional
     public void deleteRoleById(Integer id) {
@@ -91,4 +90,3 @@ public class RoleServiceImpl extends ServiceImpl<RoleMapper, Role> implements IR
         roleMenuMapper.delete(wrapper);
     }
 }
-

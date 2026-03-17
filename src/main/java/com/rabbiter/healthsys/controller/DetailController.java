@@ -40,14 +40,15 @@ public class DetailController {
     }
 
     @GetMapping("/getDetailList")
-    public Unification<Map<String, Object>> getDetailList(@RequestParam(value = "sportType", required = false) String sportType,
-                                                          @RequestParam("pageNo") Long pageNo,
-                                                          @RequestParam("pageSize") Long pageSize) {
+    public Unification<Map<String, Object>> getDetailList(
+            @RequestParam(value = "sportType", required = false) String sportType,
+            @RequestParam("pageNo") Long pageNo,
+            @RequestParam("pageSize") Long pageSize) {
 
         LambdaQueryWrapper<Detail> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(StringUtils.hasLength(sportType), Detail::getSportType, sportType); // 如果sportType参数不为空，则添加运动类型查询条件
         Page<Detail> page = new Page<>(pageNo, pageSize); // 构建分页对象，指定页码和每页大小
-        detailService.page(page, wrapper); //查询指定页码、每页大小和查询条件的用户列表
+        detailService.page(page, wrapper); // 查询指定页码、每页大小和查询条件的用户列表
         Map<String, Object> data = new HashMap<>();
         data.put("total", page.getTotal()); // 用户总数
         data.put("rows", page.getRecords()); // 用户列表
@@ -85,6 +86,4 @@ public class DetailController {
         return Unification.success("删除成功");
     }
 
-
 }
-

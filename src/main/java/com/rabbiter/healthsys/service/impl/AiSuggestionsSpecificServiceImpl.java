@@ -33,7 +33,8 @@ import java.util.concurrent.locks.ReentrantLock;
  * @since 2025-05-01
  */
 @Service
-public class AiSuggestionsSpecificServiceImpl extends ServiceImpl<AiSuggestionsSpecificMapper, AiSuggestionsSpecific> implements IAiSuggestionsSpecificService {
+public class AiSuggestionsSpecificServiceImpl extends ServiceImpl<AiSuggestionsSpecificMapper, AiSuggestionsSpecific>
+        implements IAiSuggestionsSpecificService {
 
     private static final Logger log = LoggerFactory.getLogger(AiSuggestionsSpecificServiceImpl.class);
 
@@ -63,7 +64,6 @@ public class AiSuggestionsSpecificServiceImpl extends ServiceImpl<AiSuggestionsS
 
     private final ObjectMapper objectMapper = new ObjectMapper(); // 确保已实例化
 
-
     @Override
     public AiSuggestionsSpecific getLatestSuggestionByUserId(Integer userId) {
         LambdaQueryWrapper<AiSuggestionsSpecific> queryWrapper = new LambdaQueryWrapper<>();
@@ -77,6 +77,7 @@ public class AiSuggestionsSpecificServiceImpl extends ServiceImpl<AiSuggestionsS
     /**
      * 获取或创建用户最新的 AI 建议记录。
      * 使用锁确保同一用户并发请求时操作的原子性。
+     * 
      * @param userId 用户 ID
      * @return 用户最新（或新创建）的 AiSuggestionsSpecific 记录
      */
@@ -127,13 +128,14 @@ public class AiSuggestionsSpecificServiceImpl extends ServiceImpl<AiSuggestionsS
                 userId,
                 "历史健康报告",
                 "报告生成中...",
-                AiSuggestionsSpecific::setSuggestionHistoricalHealth
-        );
+                AiSuggestionsSpecific::setSuggestionHistoricalHealth);
 
         // 准备 AI 请求数据
         List<BodyNotes> notes = bodyNotesService.getLatestBodyNotesByUserId(userId);
         String dataJson;
-        try { dataJson = objectMapper.writeValueAsString(notes); } catch (Exception e) {
+        try {
+            dataJson = objectMapper.writeValueAsString(notes);
+        } catch (Exception e) {
             log.error("序列化用户历史数据失败 (generateHistoricalReport), userId: {}", userId, e);
             updateSuggestionField(targetRecordId, AiSuggestionsSpecific::setSuggestionHistoricalHealth, "生成失败：数据处理错误");
             throw new RuntimeException("序列化用户数据失败", e);
@@ -144,8 +146,7 @@ public class AiSuggestionsSpecificServiceImpl extends ServiceImpl<AiSuggestionsS
                 targetRecordId,
                 userId,
                 "历史健康报告",
-                AiSuggestionsSpecific::setSuggestionHistoricalHealth
-        );
+                AiSuggestionsSpecific::setSuggestionHistoricalHealth);
 
         // 4. 调用 Controller 的方法，传递回调
         log.info("为用户 {} (记录ID: {}) 调用 AI 生成历史健康报告 (异步)...", userId, targetRecordId);
@@ -163,9 +164,7 @@ public class AiSuggestionsSpecificServiceImpl extends ServiceImpl<AiSuggestionsS
                 userId,
                 "当前健康报告",
                 "报告生成中...",
-                AiSuggestionsSpecific::setSuggestionCurrentHealth
-        );
-
+                AiSuggestionsSpecific::setSuggestionCurrentHealth);
 
         // 准备 AI 数据
         List<BodyNotes> notes = bodyNotesService.getLatestBodyNotesByUserId(userId);
@@ -176,7 +175,9 @@ public class AiSuggestionsSpecificServiceImpl extends ServiceImpl<AiSuggestionsS
         }
         BodyNotes record = notes.get(0);
         String recJson;
-        try { recJson = objectMapper.writeValueAsString(record); } catch (Exception e) {
+        try {
+            recJson = objectMapper.writeValueAsString(record);
+        } catch (Exception e) {
             log.error("序列化单条身体记录失败 (generateCurrentReport), userId: {}", userId, e);
             updateSuggestionField(targetRecordId, AiSuggestionsSpecific::setSuggestionCurrentHealth, "生成失败：数据处理错误");
             throw new RuntimeException("序列化单条记录失败", e);
@@ -187,8 +188,7 @@ public class AiSuggestionsSpecificServiceImpl extends ServiceImpl<AiSuggestionsS
                 targetRecordId,
                 userId,
                 "当前健康报告",
-                AiSuggestionsSpecific::setSuggestionCurrentHealth
-        );
+                AiSuggestionsSpecific::setSuggestionCurrentHealth);
 
         // 4. 调用 Controller
         log.info("为用户 {} (记录ID: {}) 调用 AI 生成当前健康报告 (异步)...", userId, targetRecordId);
@@ -206,9 +206,7 @@ public class AiSuggestionsSpecificServiceImpl extends ServiceImpl<AiSuggestionsS
                 userId,
                 "运动建议报告",
                 "报告生成中...",
-                AiSuggestionsSpecific::setSuggestionSportInfo
-        );
-
+                AiSuggestionsSpecific::setSuggestionSportInfo);
 
         // 准备 AI 数据
         List<BodyNotes> notes = bodyNotesService.getLatestBodyNotesByUserId(userId);
@@ -219,26 +217,28 @@ public class AiSuggestionsSpecificServiceImpl extends ServiceImpl<AiSuggestionsS
         }
         BodyNotes record = notes.get(0);
         String bodyJson;
-        try { bodyJson = objectMapper.writeValueAsString(record); } catch (Exception e) {
+        try {
+            bodyJson = objectMapper.writeValueAsString(record);
+        } catch (Exception e) {
             log.error("序列化身体数据失败 (for sport), userId: {}", userId, e);
             updateSuggestionField(targetRecordId, AiSuggestionsSpecific::setSuggestionSportInfo, "生成失败：身体数据处理错误");
             throw new RuntimeException("序列化数据失败", e);
         }
         String sportJson;
-        try { sportJson = objectMapper.writeValueAsString(sportInfoService.list()); } catch (JsonProcessingException e) {
+        try {
+            sportJson = objectMapper.writeValueAsString(sportInfoService.list());
+        } catch (JsonProcessingException e) {
             log.error("序列化运动信息失败 (for sport), userId: {}", userId, e);
             updateSuggestionField(targetRecordId, AiSuggestionsSpecific::setSuggestionSportInfo, "生成失败：运动信息处理错误");
             throw new RuntimeException("序列化运动信息失败", e);
         }
         String prompt = sportPrompt.replace("{{body_data}}", bodyJson).replace("{{sport_infos}}", sportJson);
 
-
         Consumer<String> updateCallback = buildSuggestionUpdateCallback(
                 targetRecordId,
                 userId,
                 "运动建议报告",
-                AiSuggestionsSpecific::setSuggestionSportInfo
-        );
+                AiSuggestionsSpecific::setSuggestionSportInfo);
 
         // 4. 调用 Controller
         log.info("为用户 {} (记录ID: {}) 调用 AI 生成运动建议报告 (异步)...", userId, targetRecordId);
@@ -292,9 +292,9 @@ public class AiSuggestionsSpecificServiceImpl extends ServiceImpl<AiSuggestionsS
     }
 
     private Integer prepareSuggestionRecord(Integer userId,
-                                            String reportName,
-                                            String placeholder,
-                                            BiConsumer<AiSuggestionsSpecific, String> fieldSetter) {
+            String reportName,
+            String placeholder,
+            BiConsumer<AiSuggestionsSpecific, String> fieldSetter) {
         AiSuggestionsSpecific targetRecord = getOrCreateLatestSuggestionRecordForUpdate(userId);
         Integer targetRecordId = targetRecord.getId();
         log.info("用户 {} 准备生成{}, 更新记录 ID: {} 状态为生成中...", userId, reportName, targetRecordId);
@@ -306,9 +306,9 @@ public class AiSuggestionsSpecificServiceImpl extends ServiceImpl<AiSuggestionsS
     }
 
     private Consumer<String> buildSuggestionUpdateCallback(Integer targetRecordId,
-                                                           Integer userId,
-                                                           String reportName,
-                                                           BiConsumer<AiSuggestionsSpecific, String> fieldSetter) {
+            Integer userId,
+            String reportName,
+            BiConsumer<AiSuggestionsSpecific, String> fieldSetter) {
         return finalReport -> {
             try {
                 log.info("收到{}回调, 准备更新记录 ID: {}, userId: {}", reportName, targetRecordId, userId);
@@ -321,7 +321,8 @@ public class AiSuggestionsSpecificServiceImpl extends ServiceImpl<AiSuggestionsS
                 if (this.updateById(recordToUpdate)) {
                     log.info("成功更新{}, 记录 ID: {}, userId: {}", reportName, targetRecordId, userId);
                 } else {
-                    log.warn("更新{}最终结果失败 (updateById 返回 false), 记录 ID: {}, userId: {}", reportName, targetRecordId, userId);
+                    log.warn("更新{}最终结果失败 (updateById 返回 false), 记录 ID: {}, userId: {}", reportName, targetRecordId,
+                            userId);
                 }
             } catch (Exception e) {
                 log.error("在{}回调中更新数据库时发生异常, 记录 ID: {}, userId: {}", reportName, targetRecordId, userId, e);
@@ -335,8 +336,8 @@ public class AiSuggestionsSpecificServiceImpl extends ServiceImpl<AiSuggestionsS
     }
 
     private void updateSuggestionField(Integer recordId,
-                                       BiConsumer<AiSuggestionsSpecific, String> fieldSetter,
-                                       String value) {
+            BiConsumer<AiSuggestionsSpecific, String> fieldSetter,
+            String value) {
         AiSuggestionsSpecific record = this.getById(recordId);
         if (record == null) {
             return;

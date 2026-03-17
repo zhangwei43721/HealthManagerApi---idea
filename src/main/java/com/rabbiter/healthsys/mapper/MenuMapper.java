@@ -17,7 +17,8 @@ import java.util.List;
 public interface MenuMapper extends BaseMapper<Menu> {
     /**
      * @Param注解用于给参数取别名，使SQL语句中的占位符可以正确映射到方法参数； getMenuListByUserId是方法名，根据Java命名规范，应该以动词开头，表示该方法的功能；
-     * (Integer userId, Integer pid)是方法参数，分别表示用户ID和菜单父ID。
+     *                                          (Integer userId, Integer
+     *                                          pid)是方法参数，分别表示用户ID和菜单父ID。
      */
     List<Menu> getMenuListByUserId(@Param("userId") Integer userId, @Param("pid") Integer pid);
 }

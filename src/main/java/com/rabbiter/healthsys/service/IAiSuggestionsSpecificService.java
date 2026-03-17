@@ -19,6 +19,7 @@ public interface IAiSuggestionsSpecificService extends IService<AiSuggestionsSpe
 
     /**
      * 获取指定用户的最新建议记录
+     * 
      * @param userId 用户ID
      * @return 最新的建议记录，如果没有则返回 null
      */
@@ -48,7 +49,8 @@ public interface IAiSuggestionsSpecificService extends IService<AiSuggestionsSpe
 
     /**
      * 流式获取运动信息建议
-     * @param token 用户认证 Token
+     * 
+     * @param token          用户认证 Token
      * @param conversationId 会话 ID
      * @return SSE 实时流
      */

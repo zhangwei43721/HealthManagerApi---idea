@@ -32,9 +32,10 @@ public class RoleController {
 
     @GetMapping("/list")
     // @RequestParam获取参数
-    public Unification<Map<String, Object>> getRoleList(@RequestParam(value = "roleName", required = false) String roleName,
-                                                        @RequestParam(value = "pageNo") Long pageNo,
-                                                        @RequestParam(value = "pageSize") Long pageSize) {
+    public Unification<Map<String, Object>> getRoleList(
+            @RequestParam(value = "roleName", required = false) String roleName,
+            @RequestParam(value = "pageNo") Long pageNo,
+            @RequestParam(value = "pageSize") Long pageSize) {
 
         // 构造查询条件
         LambdaQueryWrapper<Role> wrapper = new LambdaQueryWrapper<>();
@@ -68,24 +69,23 @@ public class RoleController {
 
     @GetMapping("/{id}")
     public Unification<Role> getRoleById(@PathVariable("id") Integer id) {
-        //根据id获取角色
+        // 根据id获取角色
         Role role = roleService.getRoleById(id);
         return Unification.success(role);
     }
 
     @DeleteMapping("/{id}")
     public Unification<Role> deleteRoleById(@PathVariable("id") Integer id) {
-        //根据id删除角色
+        // 根据id删除角色
         roleService.deleteRoleById(id);
         return Unification.success("删除成功");
     }
 
     @GetMapping("/all")
     public Unification<List<Role>> getAllRole() {
-        //获取所有角色
+        // 获取所有角色
         List<Role> roleList = roleService.list();
         return Unification.success(roleList);
     }
-
 
 }

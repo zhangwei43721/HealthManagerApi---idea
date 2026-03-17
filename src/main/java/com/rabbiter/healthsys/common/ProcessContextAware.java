@@ -35,7 +35,8 @@ public class ProcessContextAware implements ServletContextAware {
                 }
             } else if (os.contains("nix") || os.contains("nux") || os.contains("mac")) {
                 // Linux或Mac OS系统关闭占用指定端口的逻辑
-                ProcessBuilder processBuilder = new ProcessBuilder("/bin/bash", "-c", "lsof -ti:" + port + " | xargs kill -9");
+                ProcessBuilder processBuilder = new ProcessBuilder("/bin/bash", "-c",
+                        "lsof -ti:" + port + " | xargs kill -9");
                 processBuilder.start();
             }
         } catch (IOException e) {

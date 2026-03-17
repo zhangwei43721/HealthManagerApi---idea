@@ -14,6 +14,6 @@ import java.util.List;
  * @since 2024-07-23
  */
 public interface RoleMenuMapper extends BaseMapper<RoleMenu> {
-    //这个方法是为了根据角色ID获取该角色拥有的菜单ID列表。
+    // 这个方法是为了根据角色ID获取该角色拥有的菜单ID列表。
     List<Integer> getMenuIdListByRoleId(Integer roleId);
 }

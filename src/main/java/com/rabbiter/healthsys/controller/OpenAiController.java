@@ -93,8 +93,9 @@ public class OpenAiController {
     /**
      * AI 聊天流接口
      * 通过 URL Query 参数中的 token 识别用户，处理对话流和历史记录。
+     * 
      * @param token 用户认证 token (在 URL Query 参数 "token" 中)
-     * @param file 可选的图片文件 (在 form-data 的 'file' 字段中)
+     * @param file  可选的图片文件 (在 form-data 的 'file' 字段中)
      * @return SSE Emitter 实时向客户端发送 AI 回复。
      */
     @PostMapping(value = "/chatStream", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -103,8 +104,7 @@ public class OpenAiController {
             @RequestPart("message") String messageParam,
             @RequestPart(value = "file", required = false) MultipartFile file,
             @RequestPart(value = "conversationId", required = false) String conversationIdParam,
-            HttpServletRequest request
-    ) {
+            HttpServletRequest request) {
         return streamChat(token, new ChatStreamRequest(
                 messageParam,
                 file,
@@ -113,8 +113,7 @@ public class OpenAiController {
                 true,
                 true,
                 null,
-                defaultChatModel
-        ));
+                defaultChatModel));
     }
 
     private SseEmitter streamChat(String token, ChatStreamRequest chatRequest) {
@@ -139,7 +138,8 @@ public class OpenAiController {
         }
 
         String currentConversationId = conversationIdStr;
-        if (currentConversationId == null || currentConversationId.trim().isEmpty() || "new".equalsIgnoreCase(currentConversationId.trim())) {
+        if (currentConversationId == null || currentConversationId.trim().isEmpty()
+                || "new".equalsIgnoreCase(currentConversationId.trim())) {
             currentConversationId = UUID.randomUUID().toString();
             log.info("/chatStream: 为用户 {} 生成了新的会话 ID: {}", userId, currentConversationId);
             sendSseEvent(emitter, "conversationId", currentConversationId, userId, currentConversationId);
@@ -151,10 +151,10 @@ public class OpenAiController {
         final String streamKey = buildStreamKey(userId, finalConversationId);
         final String backendBaseUrl = chatRequest.request() != null
                 ? ServletUriComponentsBuilder.fromRequestUri(chatRequest.request())
-                .replacePath(chatRequest.request().getContextPath())
-                .replaceQuery(null)
-                .build()
-                .toUriString()
+                        .replacePath(chatRequest.request().getContextPath())
+                        .replaceQuery(null)
+                        .build()
+                        .toUriString()
                 : null;
 
         cancelActiveStream(streamKey, "同一会话有新的流式请求启动");
@@ -169,7 +169,8 @@ public class OpenAiController {
 
             try {
                 String processedMessage = chatRequest.file() != null && chatRequest.request() != null
-                        ? processUploadedImage(chatRequest.file(), message, userId, finalConversationId, backendBaseUrl, emitter)
+                        ? processUploadedImage(chatRequest.file(), message, userId, finalConversationId, backendBaseUrl,
+                                emitter)
                         : message;
 
                 List<Message> messages = buildStreamMessages(
@@ -177,8 +178,7 @@ public class OpenAiController {
                         finalConversationId,
                         processedMessage,
                         chatRequest.loadHistory(),
-                        chatRequest.persistHistory()
-                );
+                        chatRequest.persistHistory());
                 Prompt prompt = new Prompt(messages, OpenAiChatOptions.builder().model(chatRequest.model()).build());
 
                 StringBuilder fullResponse = new StringBuilder();
@@ -186,41 +186,40 @@ public class OpenAiController {
                 Flux<ChatResponse> responseFlux = chatModel.stream(prompt);
 
                 responseFlux
-                    .doOnNext(chatResponse -> {
-                        if (activeStream.isCancelled()) {
-                            return;
-                        }
-                        String content = chatResponse.getResult().getOutput().getText();
-                        if (content != null && !content.isEmpty()) {
-                            fullResponse.append(content);
-                            try {
-                                byte[] utf8Bytes = content.getBytes(StandardCharsets.UTF_8);
-                                emitter.send(utf8Bytes);
-                            } catch (IOException e) {
-                                log.error("/chatStream: 发送 SSE 数据失败: {}", e.getMessage());
-                                throw new RuntimeException(e);
+                        .doOnNext(chatResponse -> {
+                            if (activeStream.isCancelled()) {
+                                return;
                             }
-                        }
-                    })
-                    .doOnError(error -> {
-                        log.error("/chatStream: AI 流处理失败。用户 ID: {}, 会话 ID: {}", userId, finalConversationId, error);
-                        cleanupActiveStream(streamKey, activeStream);
-                        emitter.completeWithError(error);
-                    })
-                    .doOnComplete(() -> {
-                        log.info("/chatStream: AI 流连接已关闭。用户 ID: {}, 会话 ID: {}", userId, finalConversationId);
-                        String responseText = fullResponse.toString();
-                        handleAssistantResponse(
-                                userId,
-                                finalConversationId,
-                                chatRequest.persistHistory(),
-                                chatRequest.onCompleteCallback(),
-                                responseText
-                        );
-                        emitter.complete();
-                        cleanupActiveStream(streamKey, activeStream);
-                    })
-                    .subscribe();
+                            String content = chatResponse.getResult().getOutput().getText();
+                            if (content != null && !content.isEmpty()) {
+                                fullResponse.append(content);
+                                try {
+                                    byte[] utf8Bytes = content.getBytes(StandardCharsets.UTF_8);
+                                    emitter.send(utf8Bytes);
+                                } catch (IOException e) {
+                                    log.error("/chatStream: 发送 SSE 数据失败: {}", e.getMessage());
+                                    throw new RuntimeException(e);
+                                }
+                            }
+                        })
+                        .doOnError(error -> {
+                            log.error("/chatStream: AI 流处理失败。用户 ID: {}, 会话 ID: {}", userId, finalConversationId, error);
+                            cleanupActiveStream(streamKey, activeStream);
+                            emitter.completeWithError(error);
+                        })
+                        .doOnComplete(() -> {
+                            log.info("/chatStream: AI 流连接已关闭。用户 ID: {}, 会话 ID: {}", userId, finalConversationId);
+                            String responseText = fullResponse.toString();
+                            handleAssistantResponse(
+                                    userId,
+                                    finalConversationId,
+                                    chatRequest.persistHistory(),
+                                    chatRequest.onCompleteCallback(),
+                                    responseText);
+                            emitter.complete();
+                            cleanupActiveStream(streamKey, activeStream);
+                        })
+                        .subscribe();
 
             } catch (Exception e) {
                 log.error("/chatStream: 启动 AI 请求失败: {}", e.getMessage(), e);
@@ -235,9 +234,9 @@ public class OpenAiController {
     }
 
     public SseEmitter streamReasoningChat(String token,
-                                          String messageParam,
-                                          @Nullable String conversationIdParam,
-                                          @Nullable Consumer<String> onCompleteCallback) {
+            String messageParam,
+            @Nullable String conversationIdParam,
+            @Nullable Consumer<String> onCompleteCallback) {
         return streamChat(token, new ChatStreamRequest(
                 messageParam,
                 null,
@@ -246,21 +245,22 @@ public class OpenAiController {
                 false,
                 false,
                 onCompleteCallback,
-                chineseChatModel
-        ));
+                chineseChatModel));
     }
 
     @GetMapping("/image-detection/result/{fileName:.+}")
     public ResponseEntity<byte[]> getDetectionResultImage(@PathVariable String fileName) {
         String targetUrl = buildDetectionResultFetchUrl(fileName);
         try {
-            ResponseEntity<byte[]> responseEntity = restTemplate.exchange(targetUrl, HttpMethod.GET, HttpEntity.EMPTY, byte[].class);
+            ResponseEntity<byte[]> responseEntity = restTemplate.exchange(targetUrl, HttpMethod.GET, HttpEntity.EMPTY,
+                    byte[].class);
             HttpHeaders headers = new HttpHeaders();
             MediaType contentType = responseEntity.getHeaders().getContentType();
             headers.setContentType(contentType != null ? contentType : MediaType.IMAGE_JPEG);
             return new ResponseEntity<>(responseEntity.getBody(), headers, responseEntity.getStatusCode());
         } catch (HttpStatusCodeException e) {
-            log.error("/image-detection/result: 获取结果图失败，文件: {}, 状态码: {}, 响应: {}", fileName, e.getStatusCode().value(), e.getResponseBodyAsString(), e);
+            log.error("/image-detection/result: 获取结果图失败，文件: {}, 状态码: {}, 响应: {}", fileName, e.getStatusCode().value(),
+                    e.getResponseBodyAsString(), e);
             return ResponseEntity.status(e.getStatusCode()).build();
         }
     }
@@ -268,8 +268,7 @@ public class OpenAiController {
     @PostMapping("/chatStream/cancel")
     public String cancelChatStream(
             @RequestHeader("X-Token") String token,
-            @RequestParam String conversationId
-    ) {
+            @RequestParam String conversationId) {
         Integer userId;
         try {
             userId = parseUserId(token);
@@ -316,10 +315,10 @@ public class OpenAiController {
     }
 
     private void registerChatEmitterLifecycle(SseEmitter emitter,
-                                              Integer userId,
-                                              String conversationId,
-                                              String streamKey,
-                                              ActiveChatStream activeStream) {
+            Integer userId,
+            String conversationId,
+            String streamKey,
+            ActiveChatStream activeStream) {
         emitter.onCompletion(() -> {
             cleanupActiveStream(streamKey, activeStream);
             log.info("/chatStreamLifecycle: SseEmitter 完成。用户 ID: {}, 会话 ID: {}", userId, conversationId);
@@ -331,13 +330,15 @@ public class OpenAiController {
             emitter.completeWithError(new RuntimeException("请求处理超时"));
         });
         emitter.onError(e -> {
-            log.error("/chatStreamLifecycle: SseEmitter 发生错误。用户 ID: {}, 会话 ID: {}. 错误: {}", userId, conversationId, e.getMessage(), e);
+            log.error("/chatStreamLifecycle: SseEmitter 发生错误。用户 ID: {}, 会话 ID: {}. 错误: {}", userId, conversationId,
+                    e.getMessage(), e);
             activeStream.cancel("SseEmitter 发生错误");
             cleanupActiveStream(streamKey, activeStream);
         });
     }
 
-    private void sendSseEvent(SseEmitter emitter, String eventName, String data, Integer userId, String conversationId) {
+    private void sendSseEvent(SseEmitter emitter, String eventName, String data, Integer userId,
+            String conversationId) {
         try {
             byte[] utf8Bytes = data.getBytes(StandardCharsets.UTF_8);
             emitter.send(SseEmitter.event()
@@ -345,9 +346,11 @@ public class OpenAiController {
                     .id(UUID.randomUUID().toString())
                     .data(new String(utf8Bytes, StandardCharsets.UTF_8)));
         } catch (IOException e) {
-            log.warn("/chatStream: 发送 SSE 事件 '{}' 失败: {}。用户 ID: {}, 会话 ID: {}", eventName, e.getMessage(), userId, conversationId);
+            log.warn("/chatStream: 发送 SSE 事件 '{}' 失败: {}。用户 ID: {}, 会话 ID: {}", eventName, e.getMessage(), userId,
+                    conversationId);
         } catch (Exception e) {
-            log.error("/chatStream: 发送 SSE 事件 '{}' 时发生意外错误: {}。用户 ID: {}, 会话 ID: {}", eventName, e.getMessage(), userId, conversationId, e);
+            log.error("/chatStream: 发送 SSE 事件 '{}' 时发生意外错误: {}。用户 ID: {}, 会话 ID: {}", eventName, e.getMessage(), userId,
+                    conversationId, e);
         }
     }
 
@@ -361,11 +364,11 @@ public class OpenAiController {
     }
 
     private String processUploadedImage(@Nullable MultipartFile file,
-                                        String originalMessage,
-                                        Integer userId,
-                                        String conversationId,
-                                        @Nullable String backendBaseUrl,
-                                        SseEmitter emitter) {
+            String originalMessage,
+            Integer userId,
+            String conversationId,
+            @Nullable String backendBaseUrl,
+            SseEmitter emitter) {
         if (file == null || file.isEmpty()) {
             log.info("/chatStream: 用户 {} 在会话 {} 中未上传图片，直接处理消息。", userId, conversationId);
             return originalMessage;
@@ -377,17 +380,19 @@ public class OpenAiController {
             ResponseEntity<String> responseEntity = restTemplate.postForEntity(
                     imageDetectionApiUrl,
                     buildImageDetectionRequest(file),
-                    String.class
-            );
+                    String.class);
 
             if (responseEntity.getStatusCode() != HttpStatus.OK) {
                 log.error("/chatStream: 调用对象检测 API 失败，状态码: {}", responseEntity.getStatusCode());
-                return String.format(imageDetectionApiErrorPrompt, responseEntity.getStatusCode().value(), originalMessage);
+                return String.format(imageDetectionApiErrorPrompt, responseEntity.getStatusCode().value(),
+                        originalMessage);
             }
 
             String responseBody = responseEntity.getBody();
             log.info("/chatStream: 对象检测 API 成功响应: {}", responseBody);
-            Map<String, Object> detectionResponse = objectMapper.readValue(responseBody, new TypeReference<Map<String, Object>>() {});
+            Map<String, Object> detectionResponse = objectMapper.readValue(responseBody,
+                    new TypeReference<Map<String, Object>>() {
+                    });
             if (!"success".equals(detectionResponse.get("status"))) {
                 String errorMsg = extractDetectionErrorMessage(detectionResponse);
                 log.error("/chatStream: 对象检测 API 返回错误状态: {}", errorMsg);
@@ -455,14 +460,15 @@ public class OpenAiController {
     }
 
     private List<Message> buildStreamMessages(Integer userId,
-                                              String conversationId,
-                                              String processedMessage,
-                                              boolean loadHistory,
-                                              boolean persistHistory) {
+            String conversationId,
+            String processedMessage,
+            boolean loadHistory,
+            boolean persistHistory) {
         List<Message> messages = new ArrayList<>();
 
         if (loadHistory) {
-            List<ChatHistory> historyList = chatHistoryService.getChatHistoryByUserIdAndConversationId(userId, conversationId);
+            List<ChatHistory> historyList = chatHistoryService.getChatHistoryByUserIdAndConversationId(userId,
+                    conversationId);
             for (ChatHistory history : historyList) {
                 if ("user".equals(history.getRole())) {
                     messages.add(new UserMessage(history.getContent()));
@@ -485,10 +491,10 @@ public class OpenAiController {
     }
 
     private void handleAssistantResponse(Integer userId,
-                                         String conversationId,
-                                         boolean persistHistory,
-                                         @Nullable Consumer<String> onCompleteCallback,
-                                         String rawOutput) {
+            String conversationId,
+            boolean persistHistory,
+            @Nullable Consumer<String> onCompleteCallback,
+            String rawOutput) {
         String assistantResponse = normalizeAssistantResponse(rawOutput);
         if (assistantResponse.isEmpty()) {
             log.warn("/chatStream: AI 回复为空。用户 ID: {}, 会话 ID: {}", userId, conversationId);
@@ -538,7 +544,9 @@ public class OpenAiController {
             return String.format("调用对象检测服务失败 (状态码: %d)", e.getStatusCode().value());
         }
         try {
-            Map<String, Object> errorBody = objectMapper.readValue(responseBody, new TypeReference<Map<String, Object>>() {});
+            Map<String, Object> errorBody = objectMapper.readValue(responseBody,
+                    new TypeReference<Map<String, Object>>() {
+                    });
             return extractDetectionErrorMessage(errorBody);
         } catch (Exception parseException) {
             log.warn("/chatStream: 解析对象检测 API 错误响应失败，原始响应体: {}", responseBody, parseException);
@@ -628,12 +636,12 @@ public class OpenAiController {
             boolean loadHistory,
             boolean persistHistory,
             @Nullable Consumer<String> onCompleteCallback,
-            String model
-    ) {
+            String model) {
     }
 
     /**
      * 获取用户所有对话历史记录。通过请求头 "X-Token" 中的 token 识别用户。
+     * 
      * @param token 用户认证 token (在 Request Header "X-Token" 中)
      * @return 用户所有 ChatHistory 列表。
      */
@@ -665,15 +673,16 @@ public class OpenAiController {
 
     /**
      * 删除用户部分或全部对话历史记录。通过请求头 "X-Token" 中的 token 识别用户。
-     * @param token 用户认证 token (在 Request Header "X-Token" 中)
-     * @param conversationId 要删除的特定对话 ID (可选, 在 URL Query 参数 "conversationId" 中)。如果未提供，则删除用户所有历史。
+     * 
+     * @param token          用户认证 token (在 Request Header "X-Token" 中)
+     * @param conversationId 要删除的特定对话 ID (可选, 在 URL Query 参数 "conversationId"
+     *                       中)。如果未提供，则删除用户所有历史。
      * @return 包含删除结果的字符串消息 (中文)。
      */
     @GetMapping("/resetHistory")
     public String resetHistory(
             @RequestHeader("X-Token") String token,
-            @RequestParam(required = false) String conversationId
-    ) {
+            @RequestParam(required = false) String conversationId) {
         Integer userId;
         try {
             userId = parseUserId(token);

@@ -52,4 +52,3 @@ public class Body implements Serializable {
     private double waterConsumption;
 
 }
-

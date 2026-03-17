@@ -17,7 +17,8 @@ public interface IChatHistoryService extends IService<ChatHistory> {
 
     /**
      * 根据用户ID和对话ID获取聊天历史记录，按时间排序
-     * @param userId 用户ID
+     * 
+     * @param userId         用户ID
      * @param conversationId 对话ID
      * @return 聊天历史记录列表
      */
@@ -25,6 +26,7 @@ public interface IChatHistoryService extends IService<ChatHistory> {
 
     /**
      * 删除某个用户的所有聊天历史记录
+     * 
      * @param userId 用户ID
      * @return 删除的记录数
      */
@@ -32,7 +34,8 @@ public interface IChatHistoryService extends IService<ChatHistory> {
 
     /**
      * 删除某个用户特定对话的聊天历史记录
-     * @param userId 用户ID
+     * 
+     * @param userId         用户ID
      * @param conversationId 对话ID
      * @return 删除的记录数
      */

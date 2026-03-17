@@ -16,11 +16,9 @@ import java.io.Serializable;
 @TableName("detail")
 public class Detail implements Serializable {
 
-
     @TableId(type = IdType.AUTO)
     @TableField(value = "id")
     private Integer id;
-
 
     @TableField("sport_type")
     private String sportType;
